@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Latest Videos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latest Videos</h5>
+                </div>
+                <div class="card-body">
+                    {% if latest_videos %}
+                    <div class="row g-4">
+                        {% for video in latest_videos %}
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <a href="{% url 'videos:watch' video.slug %}" class="text-decoration-none text-dark">
+                                    <img src="{{ video.thumbnail.url }}" class="card-img-top" alt="{{ video.title }}">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ video.title }}</h6>
+                                        <p class="card-text text-muted small">
+                                            {{ video.creator.username }}<br>
+                                            {{ video.views }} views • {{ video.created_at|timesince }} ago
+                                        </p>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-video fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No videos available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

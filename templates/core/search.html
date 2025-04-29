@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load video_tags %}
+
+{% block title %}Search Results{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-result-card {
+        transition: transform 0.2s;
+        height: 100%;
+    }
+    
+    .search-result-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .video-thumbnail {
+        position: relative;
+        padding-top: 56.25%; /* 16:9 aspect ratio */
+        overflow: hidden;
+    }
+    
+    .video-thumbnail img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .video-duration {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-size: 0.75rem;
+    }
+    
+    .content-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 0.75rem;
+    }
+    
+    .search-filters {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .result-count {
+        font-weight: 500;
+        color: #6c757d;
+    }
+    
+    .search-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        align-items: center;
+    }
+    
+    .sort-by {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Search Header -->
+    <div class="mb-4">
+        <h1 class="h3">Search Results for "{{ query }}"</h1>
+        <div class="search-stats">
+            <p class="result-count mb-0">{{ videos|length }} results found</p>
+            <div class="sort-by">
+                <span>Sort by:</span>
+                <div class="btn-group me-3" role="group">
+                    <a href="?q={{ query }}&sort=relevance{% if content_type %}&content_type={{ content_type }}{% endif %}{% if duration %}&duration={{ duration }}{% endif %}&method={{ search_method }}" 
+                       class="btn btn-sm {% if sort == 'relevance' or not sort %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                       Relevance
+                    </a>
+                    <a href="?q={{ query }}&sort=date{% if content_type %}&content_type={{ content_type }}{% endif %}{% if duration %}&duration={{ duration }}{% endif %}&method={{ search_method }}" 
+                       class="btn btn-sm {% if sort == 'date' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                       Latest
+                    </a>
+                    <a href="?q={{ query }}&sort=views{% if content_type %}&content_type={{ content_type }}{% endif %}{% if duration %}&duration={{ duration }}{% endif %}&method={{ search_method }}" 
+                       class="btn btn-sm {% if sort == 'views' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                       Most Viewed
+                    </a>
+                </div>
+                <!-- Search method selector -->
+                <div class="d-flex align-items-center ms-3">
+                    <span class="me-2">Search:</span>
+                    <div class="btn-group" role="group">
+                        <a href="?q={{ query }}&sort={{ sort }}{% if content_type %}&content_type={{ content_type }}{% endif %}{% if duration %}&duration={{ duration }}{% endif %}&method=semantic" 
+                           class="btn btn-sm {% if search_method == 'semantic' %}btn-success{% else %}btn-outline-success{% endif %}">
+                           <i class="fas fa-brain me-1"></i> BERT
+                        </a>
+                        <a href="?q={{ query }}&sort={{ sort }}{% if content_type %}&content_type={{ content_type }}{% endif %}{% if duration %}&duration={{ duration }}{% endif %}&method=traditional" 
+                           class="btn btn-sm {% if search_method == 'traditional' %}btn-success{% else %}btn-outline-success{% endif %}">
+                           <i class="fas fa-database me-1"></i> Traditional
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search Filters -->
+    <div class="search-filters">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Type</label>
+                <div class="form-check">
+                    <input class="form-check-input filter-checkbox" type="checkbox" value="video" id="filterVideo" checked>
+                    <label class="form-check-label" for="filterVideo">Videos</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input filter-checkbox" type="checkbox" value="photo" id="filterPhoto" checked>
+                    <label class="form-check-label" for="filterPhoto">Photos</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input filter-checkbox" type="checkbox" value="blog" id="filterBlog" checked>
+                    <label class="form-check-label" for="filterBlog">Blogs</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Duration</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="durationFilter" id="durationAll" value="all" checked>
+                    <label class="form-check-label" for="durationAll">All</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="durationFilter" id="durationShort" value="short">
+                    <label class="form-check-label" for="durationShort">Short (< 4 min)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="durationFilter" id="durationLong" value="long">
+                    <label class="form-check-label" for="durationLong">Long (> 20 min)</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    {% if videos %}
+    <div class="row g-4" id="searchResults">
+        {% for video in videos %}
+        <div class="col-md-4 mb-4 result-item" data-type="{{ video.content_type }}">
+            <div class="card search-result-card h-100">
+                <a href="{% url 'videos:watch' video.slug %}" class="text-decoration-none text-dark">
+                    <div class="video-thumbnail">
+                        <img src="{{ video.thumbnail.url }}" alt="{{ video.title }}" class="card-img-top">
+                        {% if video.duration %}
+                        <span class="video-duration">{{ video.duration|time:"G:i:s" }}</span>
+                        {% endif %}
+                        <span class="badge {% if video.content_type == 'video' %}bg-dark{% elif video.content_type == 'photo' %}bg-info{% else %}bg-success{% endif %} content-badge">
+                            <i class="fas {% if video.content_type == 'video' %}fa-video{% elif video.content_type == 'photo' %}fa-camera{% else %}fa-file-alt{% endif %}"></i>
+                            {{ video.content_type|title }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate">{{ video.title }}</h5>
+                        <p class="card-text text-muted mb-0">
+                            <small>{{ video.creator.username }}</small>
+                        </p>
+                        <p class="card-text text-muted">
+                            <small>{{ video.views|format_view_count }} views • {{ video.created_at|timesince }} ago</small>
+                        </p>
+                        <p class="card-text small text-truncate">
+                            {{ video.description|truncatechars:100 }}
+                        </p>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center p-5">
+        <i class="fas fa-search fa-4x text-muted mb-3"></i>
+        <h3>No results found</h3>
+        <p class="text-muted">Try different keywords or check your spelling</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Type filter functionality
+    const filterCheckboxes = document.querySelectorAll('.filter-checkbox');
+    const resultItems = document.querySelectorAll('.result-item');
+    
+    filterCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', applyFilters);
+    });
+    
+    function applyFilters() {
+        const selectedTypes = Array.from(filterCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+        
+        resultItems.forEach(item => {
+            const itemType = item.dataset.type;
+            if (selectedTypes.includes(itemType)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

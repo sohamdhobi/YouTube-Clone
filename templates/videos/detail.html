@@ -1,0 +1,1109 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% load video_tags %}
+
+{% block title %}{{ video.title }} - YouTube Clone{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<style>
+    .video-container {
+        position: relative;
+        width: 100%;
+        background-color: #000;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .video-container video {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    
+    /* Plyr custom styles */
+    .plyr {
+        border-radius: 4px;
+        overflow: hidden;
+        background: #000;
+    }
+    
+    .plyr--video {
+        height: auto;
+    }
+    
+    .plyr--video .plyr__video-wrapper {
+        position: relative;
+        width: 100%;
+        height: auto;
+    }
+    
+    .plyr--video .plyr__control--overlaid {
+        background: rgba(255, 0, 0, 0.8);
+    }
+    
+    .plyr--video .plyr__control--overlaid:hover {
+        background: #ff0000;
+    }
+    
+    .plyr--full-ui input[type=range] {
+        color: #ff0000;
+    }
+    
+    .plyr__control.plyr__tab-focus,
+    .plyr__control:hover,
+    .plyr__control[aria-expanded=true] {
+        background: #ff0000;
+    }
+    
+    .plyr__menu__container {
+        background: rgba(28, 28, 28, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        z-index: 1000;
+    }
+    
+    .plyr__menu__container [role="menuitem"] {
+        color: #fff;
+        padding: 8px 12px;
+    }
+    
+    .plyr__menu__container [role="menuitem"]:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .plyr__menu__container [role="menuitem"][aria-checked="true"] {
+        color: #ff0000;
+    }
+    
+    /* Ensure quality menu is visible */
+    .plyr__menu {
+        z-index: 1000;
+    }
+    
+    .plyr__menu__container {
+        z-index: 1001;
+    }
+    
+    /* Make sure controls are always visible */
+    .plyr__controls {
+        z-index: 1000;
+    }
+    
+    /* Quality selector styles */
+    #quality-selector {
+        position: absolute;
+        bottom: 45px;
+        right: 15px;
+        transition: opacity 0.3s ease;
+        opacity: 1;
+        z-index: 1001;
+    }
+    
+    .plyr--video.plyr--hide-controls #quality-selector {
+        opacity: 0;
+    }
+    
+    #quality-btn {
+        background-color: rgba(28, 28, 28, 0.8);
+        transition: all 0.2s ease;
+        border-radius: 3px;
+    }
+    
+    #quality-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    #quality-menu {
+        background-color: rgba(28, 28, 28, 0.9);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .quality-option.active {
+        color: #ff0000 !important;
+        background-color: rgba(255, 0, 0, 0.2);
+    }
+    
+    .quality-option.active i {
+        color: #ff0000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Moderation Status Alert for creator or admin -->
+    {% if not video.is_published and user.is_authenticated %}
+    <div class="col-12 mb-3">
+        <div class="alert {% if video.moderation_status == 'pending' %}alert-warning{% elif video.moderation_status == 'rejected' %}alert-danger{% else %}alert-info{% endif %}">
+            <div class="d-flex align-items-center">
+                {% if video.moderation_status == 'pending' %}
+                <i class="fas fa-clock me-2"></i>
+                <div>
+                    <strong>Content Pending Approval</strong>
+                    <p class="mb-0">
+                        This content is not publicly visible and is awaiting moderation. 
+                        {% if user == video.creator %}
+                        You're seeing this because you're the creator.
+                        {% elif user.is_admin %}
+                        You're seeing this because you're an admin.
+                        {% else %}
+                        You're seeing this because the creator has shared it with you.
+                        {% endif %}
+                    </p>
+                </div>
+                {% elif video.moderation_status == 'rejected' %}
+                <i class="fas fa-times-circle me-2"></i>
+                <div>
+                    <strong>Content Rejected</strong>
+                    <p class="mb-0">
+                        This content was rejected by our moderation team and is not publicly visible.
+                        {% if user == video.creator %}
+                        You're seeing this because you're the creator.
+                        {% elif user.is_admin %}
+                        You're seeing this because you're an admin.
+                        {% else %}
+                        You're seeing this because the creator has shared it with you.
+                        {% endif %}
+                        {% if video.moderation_notes %}<br>Reason: {{ video.moderation_notes }}{% endif %}
+                    </p>
+                </div>
+                {% else %}
+                <i class="fas fa-info-circle me-2"></i>
+                <div>
+                    <strong>Content Not Published</strong>
+                    <p class="mb-0">
+                        This content is not publicly visible. 
+                        {% if user == video.creator %}
+                        You're seeing this because you're the creator.
+                        {% elif user.is_admin %}
+                        You're seeing this because you're an admin.
+                        {% else %}
+                        You're seeing this because the creator has shared it with you.
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Content Display -->
+    <div class="col-lg-8">
+        <div class="content-player mb-4">
+            {% if video.content_type == 'video' %}
+            <div class="video-container">
+                <div class="player-wrapper">
+                    <video
+                        id="player"
+                        playsinline
+                        controls
+                        crossorigin
+                        poster="{{ video.thumbnail.url }}"
+                    >
+                        {% if video.hls_url and '.m3u8' in video.hls_url %}
+                        <source src="{{ video.hls_url }}" type="application/x-mpegURL" />
+                        {% elif video.hls_url %}
+                        <source src="{{ video.hls_url }}" type="video/mp4" />
+                        {% endif %}
+                        {% if video.file %}
+                        <source src="{{ video.file.url }}" type="video/mp4" />
+                        {% endif %}
+                        <p class="plyr__fallback">
+                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                        </p>
+                </video>
+                    <!-- Direct quality selector -->
+                    <div id="quality-selector" class="position-absolute bg-dark bg-opacity-75 rounded text-white">
+                        <button id="quality-btn" class="btn btn-sm text-white px-2 py-1 d-flex align-items-center">
+                            <i class="fas fa-cog me-1"></i>
+                            <span id="current-quality">Auto</span>
+                            <i class="fas fa-chevron-down ms-1"></i>
+                        </button>
+                        <div id="quality-menu" class="position-absolute bottom-100 end-0 mb-1 bg-dark bg-opacity-90 rounded p-2" style="display: none; min-width: 120px;">
+                            <div class="d-flex flex-column">
+                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center active" data-value="auto">
+                                    <i class="fas fa-random me-2"></i> Auto
+                                </button>
+                                <!-- Default quality options -->
+                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="1080">
+                                    <i class="fas fa-film me-2"></i> 1080p
+                                </button>
+                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="720">
+                                    <i class="fas fa-film me-2"></i> 720p
+                                </button>
+                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="480">
+                                    <i class="fas fa-video me-2"></i> 480p
+                                </button>
+                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="360">
+                                    <i class="fas fa-video me-2"></i> 360p
+                                </button>
+                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="240">
+                                    <i class="fas fa-compress me-2"></i> 240p
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% elif video.content_type == 'photo' %}
+            <div class="video-thumbnail">
+                <img src="{{ video.image.url }}" alt="{{ video.title }}">
+            </div>
+            {% elif video.content_type == 'blog' %}
+            <div class="blog-display card">
+                <div class="card-header">
+                    <h2>{{ video.title }}</h2>
+                    <small class="text-muted">{{ video.created_at|date:"F d, Y" }}</small>
+                </div>
+                <div class="card-body">
+                    <div class="video-thumbnail mb-3">
+                        <img src="{{ video.thumbnail.url }}" alt="{{ video.title }}">
+                    </div>
+                    <div class="blog-content">
+                        {{ video.blog_content|linebreaks }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Content Info -->
+        <div class="card mb-4">
+            <div class="card-body">
+                {% if video.content_type != 'blog' %}
+                <h1 class="card-title h3">{{ video.title }}</h1>
+                {% endif %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <span class="text-muted">
+                            <i class="fas fa-eye"></i> {{ video.views|format_view_count }} views
+                        </span>
+                        <span class="text-muted ms-3">
+                            <i class="fas fa-calendar"></i> {{ video.created_at|date:"M d, Y" }}
+                        </span>
+                        {% if video.content_type != 'video' %}
+                        <span class="text-muted ms-3">
+                            <i class="fas {% if video.content_type == 'photo' %}fa-image{% elif video.content_type == 'blog' %}fa-blog{% endif %}"></i>
+                            {{ video.get_content_type_display }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <form method="post" action="{% url 'videos:like' video.slug %}" id="like-form">
+                            {% csrf_token %}
+                            <button type="button" class="btn {% if is_liked %}btn-primary{% else %}btn-tertiary{% endif %}" onclick="likeVideo()">
+                                <i class="fas fa-thumbs-up"></i>
+                                <span id="like-count">{{ video.like_count }}</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center">
+                    <img src="{% if video.creator.avatar %}{{ video.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                         alt="{{ video.creator.username }}" 
+                         class="rounded-circle me-2"
+                         width="40" height="40">
+                    <div>
+                        <h6 class="mb-0">{{ video.creator.username }}</h6>
+                        {% if user.is_authenticated and user != video.creator %}
+                        <form action="{% url 'users:subscribe' video.creator.username %}" method="post" class="d-inline" id="subscribe-form">
+                            {% csrf_token %}
+                            <button type="button" class="btn {% if is_subscribed %}btn-secondary{% else %}btn-danger{% endif %}" onclick="subscribe()">
+                                <i class="fas {% if is_subscribed %}fa-user-minus{% else %}fa-user-plus{% endif %}"></i>
+                                <span class="subscribe-text">{% if is_subscribed %}Unsubscribe{% else %}Subscribe{% endif %}</span>
+                            </button>
+                        </form>
+                        <small class="text-muted ms-2" id="subscriber-count">{{ video.creator.subscriber_count }} subscribers</small>
+                        {% endif %}
+                    </div>
+                    </div>
+                    <div class="d-flex">
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'videos:add_to_playlist' video.slug %}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-list"></i> Add to Playlist
+                        </a>
+                        
+                        {% if user != video.creator %}
+                        <div class="dropdown">
+                            <button class="btn btn-outline-danger dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-flag"></i> Report
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown">
+                                <li><h6 class="dropdown-header">Report {{ video.get_content_type_display }}</h6></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=inappropriate">
+                                        <i class="fas fa-exclamation-triangle text-danger me-2"></i> Inappropriate Content
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=spam">
+                                        <i class="fas fa-ban text-danger me-2"></i> Spam or Misleading
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=violence">
+                                        <i class="fas fa-fist-raised text-danger me-2"></i> Violence or Dangerous Content
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=harassment">
+                                        <i class="fas fa-user-slash text-danger me-2"></i> Harassment or Bullying
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=adult">
+                                        <i class="fas fa-exclamation-circle text-danger me-2"></i> Adult/Sexual Content
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=child_safety">
+                                        <i class="fas fa-child text-danger me-2"></i> Child Safety Concern
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=terrorism">
+                                        <i class="fas fa-shield-alt text-danger me-2"></i> Terrorism or Extremism
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=impersonation">
+                                        <i class="fas fa-user-secret text-danger me-2"></i> Impersonation
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=copyright">
+                                        <i class="fas fa-copyright text-danger me-2"></i> Copyright Violation
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=other">
+                                        <i class="fas fa-ellipsis-h text-danger me-2"></i> Other
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <div class="dropdown-item-text small text-muted p-2">
+                                        Please report content that violates our guidelines. We take reports seriously and will review them promptly.
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% if video.content_type != 'blog' %}
+                <div class="card-text">
+                    {{ video.description|linebreaks }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Comments -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comments"></i> Comments ({{ video.comment_count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if user.is_authenticated %}
+                <form method="post" action="{% url 'videos:comment' video.slug %}" class="mb-4">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="comment-text">Your comment</label>
+                        <textarea name="text" id="comment-text" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-2">
+                        <i class="fas fa-paper-plane"></i> Comment
+                    </button>
+                </form>
+                {% else %}
+                <div class="alert alert-info">
+                    Please <a href="{% url 'account_login' %}">login</a> to leave a comment.
+                </div>
+                {% endif %}
+
+                <div class="comments-section">
+                    {% for comment in comments %}
+                        {% if not comment.parent %}
+                            {% include "videos/comment.html" with comment=comment %}
+                        {% endif %}
+                    {% empty %}
+                    <p class="text-muted">No comments yet. Be the first to comment!</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Related Content -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Related Content</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for related_video in related_videos %}
+                <a href="{% url 'videos:watch' related_video.slug %}" class="list-group-item list-group-item-action">
+                    <div class="d-flex">
+                        <div class="flex-shrink-0">
+                            {% if related_video.content_type == 'photo' and related_video.image %}
+                                <img src="{{ related_video.image.url }}" alt="{{ related_video.title }}" 
+                                     class="rounded" width="120" height="68">
+                            {% else %}
+                                <img src="{{ related_video.thumbnail.url }}" alt="{{ related_video.title }}" 
+                                     class="rounded" width="120" height="68">
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-1">{{ related_video.title }}</h6>
+                            <div class="d-flex flex-column">
+                                <small class="text-muted">{{ related_video.creator.username }}</small>
+                                <small class="text-muted">
+                                    <i class="fas fa-eye"></i> {{ related_video.views|format_view_count }} views
+                                    <i class="fas fa-clock ms-2"></i> {{ related_video.created_at|timesince }} ago
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="list-group-item">No related content</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Categories</h5>
+            </div>
+            <div class="card-body">
+                {% for category in video.categories.all %}
+                <a href="{% url 'core:category_detail' category.slug %}" 
+                   class="badge bg-primary text-decoration-none me-2 mb-2">
+                    {{ category.name }}
+                </a>
+                {% empty %}
+                <p class="text-muted">No categories</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="{% static 'js/watch_time_tracker.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Plyr player
+    const player = new Plyr('#player', {
+        controls: [
+            'play-large',
+            'play',
+            'progress',
+            'current-time',
+            'mute',
+            'volume',
+            'captions',
+            'settings',
+            'pip',
+            'airplay',
+            'fullscreen'
+        ],
+        settings: ['quality', 'speed', 'loop'],
+        quality: {
+            default: 720,
+            options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240]
+        },
+        i18n: {
+            quality: 'Quality',
+            speed: 'Speed',
+            normal: 'Normal'
+        },
+        keyboard: { focused: true, global: true }
+    });
+
+    // Get video element and sources
+    const video = document.querySelector('video');
+    const sources = Array.from(video.querySelectorAll('source'));
+    const hlsUrl = sources.length > 0 ? sources[0].src : '';
+
+    // Set up quality selector for all videos regardless of HLS
+    const qualitySelector = document.getElementById('quality-selector');
+    const qualityBtn = document.getElementById('quality-btn');
+    const qualityMenu = document.getElementById('quality-menu');
+    const currentQuality = document.getElementById('current-quality');
+    
+    // Make selector visible by default
+    if (qualitySelector) {
+        // Sync with player controls visibility
+        player.on('controlsshown', function() {
+            qualitySelector.style.opacity = '1';
+        });
+        
+        player.on('controlshidden', function() {
+            // Only hide if menu is closed
+            if (qualityMenu.style.display === 'none') {
+                qualitySelector.style.opacity = '0';
+            }
+        });
+        
+        // Toggle menu when button is clicked
+        qualityBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = qualityMenu.style.display === 'block';
+            qualityMenu.style.display = isOpen ? 'none' : 'block';
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (qualitySelector && !qualitySelector.contains(e.target)) {
+                qualityMenu.style.display = 'none';
+            }
+        });
+        
+        // Add click handlers for pre-defined quality options
+        document.querySelectorAll('.quality-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const quality = this.dataset.value;
+                selectQuality(quality, this);
+            });
+        });
+    }
+    
+    // Helper function to select quality
+    function selectQuality(quality, optionElem) {
+        // Handle auto quality
+        if (quality === 'auto' && window.hls) {
+            window.hls.currentLevel = -1;
+            currentQuality.textContent = 'Auto';
+        } 
+        // Handle specific quality level
+        else if (window.hls) {
+            const qualityHeight = parseInt(quality);
+            const targetLevel = window.hls.levels.findIndex(level => 
+                level.height === qualityHeight);
+            
+            if (targetLevel !== -1) {
+                window.hls.currentLevel = targetLevel;
+                currentQuality.textContent = `${quality}p`;
+            }
+        } else {
+            // For non-HLS fallback
+            player.quality = parseInt(quality);
+            currentQuality.textContent = `${quality}p`;
+        }
+        
+        // Save preference
+        localStorage.setItem('videoQualityPreference', quality);
+        
+        // Update active state
+        document.querySelectorAll('.quality-option').forEach(opt => {
+            opt.classList.remove('active');
+            opt.querySelector('i').classList.add('d-none');
+        });
+        
+        if (optionElem) {
+            optionElem.classList.add('active');
+            const icon = optionElem.querySelector('i');
+            if (icon) icon.classList.remove('d-none');
+        }
+        
+        // Hide menu
+        qualityMenu.style.display = 'none';
+    }
+    
+    if (Hls.isSupported() && hlsUrl.includes('.m3u8')) {
+        const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            maxBufferLength: 30
+        });
+        
+        // Store hls instance globally
+        window.hls = hls;
+
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+
+        // Handle quality selection from HLS stream
+        hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+            const levels = data.levels;
+            console.log('HLS Quality Levels:', levels);
+            
+            if (levels.length > 1) {
+                // Store all available qualities
+                const availableQualities = levels.map(level => level.height);
+                
+                // Update existing quality options based on available qualities
+                document.querySelectorAll('.quality-option:not([data-value="auto"])').forEach(option => {
+                    const optionValue = parseInt(option.dataset.value);
+                    if (!availableQualities.includes(optionValue)) {
+                        option.style.display = 'none'; // Hide options not available in the stream
+                    } else {
+                        option.style.display = 'flex'; // Show available options
+                    }
+                });
+                
+                // Apply saved quality preference
+                const savedQuality = localStorage.getItem('videoQualityPreference');
+                if (savedQuality) {
+                    if (savedQuality === 'auto') {
+                        selectQuality('auto', document.querySelector('.quality-option[data-value="auto"]'));
+                    } else {
+                        const targetHeight = parseInt(savedQuality);
+                        const targetLevel = levels.findIndex(level => level.height === targetHeight);
+                        if (targetLevel !== -1) {
+                            selectQuality(savedQuality, document.querySelector(`.quality-option[data-value="${savedQuality}"]`));
+                        } else {
+                            // If saved quality not available, default to auto
+                            selectQuality('auto', document.querySelector('.quality-option[data-value="auto"]'));
+                        }
+                    }
+                } else {
+                    // Default to auto if no preference saved
+                    selectQuality('auto', document.querySelector('.quality-option[data-value="auto"]'));
+                }
+            } else {
+                // Only one quality available, hide selector
+                if (qualitySelector) {
+                    qualitySelector.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // Add keyboard shortcut debug
+    window.addEventListener('keydown', function(e) {
+        console.log('Key pressed:', e.key);
+        
+        // Skip if in input fields
+        if (e.target.nodeName === 'INPUT' || e.target.nodeName === 'TEXTAREA' || e.target.isContentEditable) {
+            return;
+        }
+        
+        let handled = false;
+        
+        // Handle shortcuts manually
+        switch(e.key) {
+            case ' ':
+            case 'k':
+                console.log('Play/pause triggered');
+                if (player && typeof player.togglePlay === 'function') {
+                    player.togglePlay();
+                    handled = true;
+                }
+                break;
+            case 'm':
+                console.log('Mute triggered');
+                if (player && typeof player.toggleMute === 'function') {
+                    player.toggleMute();
+                    handled = true;
+                }
+                break;
+            case 'ArrowLeft':
+                console.log('Rewind triggered');
+                if (player && typeof player.rewind === 'function') {
+                    player.rewind(5);
+                    handled = true;
+                }
+                break;
+            case 'ArrowRight':
+                console.log('Forward triggered');
+                if (player && typeof player.forward === 'function') {
+                    player.forward(5);
+                    handled = true;
+                }
+                break;
+            case 'ArrowUp':
+                console.log('Volume up triggered');
+                if (player && typeof player.volume === 'number') {
+                    player.volume = Math.min(1, player.volume + 0.1);
+                    handled = true;
+                }
+                break;
+            case 'ArrowDown':
+                console.log('Volume down triggered');
+                if (player && typeof player.volume === 'number') {
+                    player.volume = Math.max(0, player.volume - 0.1);
+                    handled = true;
+                }
+                break;
+            case 'f':
+                console.log('Fullscreen triggered');
+                if (player && player.fullscreen && typeof player.fullscreen.toggle === 'function') {
+                    player.fullscreen.toggle();
+                    handled = true;
+                }
+                break;
+        }
+        
+        if (handled) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+
+    // Make sure plyr events are properly handled
+    player.on('ready', () => {
+        console.log('Player is ready');
+    });
+    
+    player.on('play', () => {
+        console.log('Video playing');
+    });
+    
+    player.on('pause', () => {
+        console.log('Video paused');
+    });
+
+    // Initialize watch time tracker for recommendations
+    const watchTimeTracker = new WatchTimeTracker({
+        videoSelector: '#video-player video',
+        videoId: {{ video.id }},
+        csrfToken: '{{ csrf_token }}',
+        submitUrl: '{% url "videos:update_watch_time" %}'
+    });
+    
+    // Store tracker instance in window for debugging
+    window.watchTimeTracker = watchTimeTracker;
+});
+
+function likeVideo() {
+    const form = document.getElementById('like-form');
+    const formData = new FormData(form);
+    const likeButton = form.querySelector('button');
+    
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const likeCount = document.getElementById('like-count');
+            
+            // Update button color
+            if (data.liked) {
+                likeButton.classList.remove('btn-tertiary');
+                likeButton.classList.add('btn-primary');
+            } else {
+                likeButton.classList.remove('btn-primary');
+                likeButton.classList.add('btn-tertiary');
+            }
+            
+            likeCount.textContent = data.like_count;
+        } else {
+            console.error('Server returned error:', data);
+            alert(data.error || 'An error occurred while processing your request');
+        }
+    })
+    .catch(error => {
+        console.error('Error details:', error);
+        alert('An error occurred while processing your request. Please check the console for details.');
+    });
+}
+
+function subscribe() {
+    const form = document.getElementById('subscribe-form');
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const subscribeButton = form.querySelector('button');
+            const subscribeIcon = subscribeButton.querySelector('i');
+            const subscribeText = subscribeButton.querySelector('.subscribe-text');
+            const subscriberCount = document.getElementById('subscriber-count');
+            
+            if (data.subscribed) {
+                subscribeButton.classList.remove('btn-danger');
+                subscribeButton.classList.add('btn-secondary');
+                subscribeIcon.classList.remove('fa-user-plus');
+                subscribeIcon.classList.add('fa-user-minus');
+                subscribeText.textContent = 'Unsubscribe';
+            } else {
+                subscribeButton.classList.remove('btn-secondary');
+                subscribeButton.classList.add('btn-danger');
+                subscribeIcon.classList.remove('fa-user-minus');
+                subscribeIcon.classList.add('fa-user-plus');
+                subscribeText.textContent = 'Subscribe';
+            }
+            
+            subscriberCount.textContent = `${data.subscriber_count} subscribers`;
+        } else {
+            alert(data.error || 'An error occurred while processing your request');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while processing your request');
+    });
+}
+
+function showReplyForm(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
+}
+
+function likeComment(commentId) {
+    fetch(`/videos/comment/${commentId}/like/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const likeButton = document.getElementById(`comment-like-${commentId}`);
+            const likeCount = document.getElementById(`comment-like-count-${commentId}`);
+            
+            // Update button color
+            if (data.liked) {
+                likeButton.classList.remove('btn-tertiary');
+                likeButton.classList.add('btn-primary');
+            } else {
+                likeButton.classList.remove('btn-primary');
+                likeButton.classList.add('btn-tertiary');
+            }
+            
+            // Update like count
+            if (data.like_count > 0) {
+                likeCount.textContent = data.like_count;
+                likeCount.style.display = 'inline-block';
+            } else {
+                likeCount.textContent = '0';
+                likeCount.style.display = 'none';
+            }
+            
+            // Log for debugging
+            console.log('Like count updated:', data.like_count);
+        } else {
+            console.error('Server returned error:', data);
+            alert(data.error || 'An error occurred while processing your request');
+        }
+    })
+    .catch(error => {
+        console.error('Error details:', error);
+        alert('An error occurred while processing your request. Please check the console for details.');
+    });
+}
+
+function submitReply(commentId) {
+    const form = document.getElementById(`reply-form-${commentId}-form`);
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const comment = data.comment;
+            const repliesContainer = document.querySelector(`#comment-${commentId} > .comment-replies`);
+            
+            // Create new reply element
+            const replyHtml = `
+                <div class="comment mt-2" id="comment-${comment.id}">
+                    <div class="d-flex align-items-center mb-2">
+                        <img src="${comment.user.avatar}" 
+                             alt="${comment.user.username}" 
+                             class="rounded-circle me-2"
+                             width="32" height="32">
+                        <div>
+                            <h6 class="mb-0">${comment.user.username}</h6>
+                            <small class="text-muted">${comment.created_at}</small>
+                        </div>
+                    </div>
+                    <p class="mb-2">${comment.content}</p>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-tertiary"
+                                id="comment-like-${comment.id}" onclick="likeComment(${comment.id})">
+                            <i class="fas fa-thumbs-up"></i>
+                            <span class="like-count ms-1" id="comment-like-count-${comment.id}">0</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="showReplyForm(${comment.id})">
+                            <i class="fas fa-reply"></i> Reply
+                        </button>
+                    </div>
+                    <div id="reply-form-${comment.id}" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'videos:comment' video.slug %}" id="reply-form-${comment.id}-form">
+                            <input type="hidden" name="csrfmiddlewaretoken" value="${formData.get('csrfmiddlewaretoken')}">
+                            <input type="hidden" name="parent_id" value="${comment.id}">
+                            <div class="form-group">
+                                <textarea name="text" class="form-control" rows="2" required></textarea>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="submitReply(${comment.id})">
+                                <i class="fas fa-paper-plane"></i> Reply
+                            </button>
+                        </form>
+                    </div>
+                    <div class="comment-replies"></div>
+                </div>
+            `;
+            
+            // Add reply to container
+            repliesContainer.insertAdjacentHTML('beforeend', replyHtml);
+            
+            // Hide reply form
+            document.getElementById(`reply-form-${commentId}`).style.display = 'none';
+            
+            // Clear form
+            form.reset();
+        } else {
+            console.error('Server returned error:', data);
+            alert(data.error || 'An error occurred while processing your request');
+        }
+    })
+    .catch(error => {
+        console.error('Error details:', error);
+        alert('An error occurred while processing your request. Please check the console for details.');
+    });
+}
+
+// Comment edit functions
+function showCommentEdit(commentId) {
+    // Hide the comment text and show the edit form
+    document.getElementById(`comment-text-${commentId}`).style.display = 'none';
+    document.getElementById(`edit-form-${commentId}`).style.display = 'block';
+}
+
+function cancelCommentEdit(commentId) {
+    // Hide the edit form and show the comment text
+    document.getElementById(`edit-form-${commentId}`).style.display = 'none';
+    document.getElementById(`comment-text-${commentId}`).style.display = 'block';
+    
+    // Reset the textarea to the original content
+    const originalText = document.getElementById(`comment-text-${commentId}`).textContent;
+    document.getElementById(`edit-textarea-${commentId}`).value = originalText;
+}
+
+function saveCommentEdit(commentId) {
+    const newContent = document.getElementById(`edit-textarea-${commentId}`).value;
+    
+    if (!newContent.trim()) {
+        alert('Comment cannot be empty');
+        return;
+    }
+    
+    fetch(`/videos/comment/${commentId}/edit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ content: newContent })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Update the displayed comment text
+            const commentTextElement = document.getElementById(`comment-text-${commentId}`);
+            commentTextElement.textContent = data.content;
+            
+            // Hide the edit form and show the updated text
+            document.getElementById(`edit-form-${commentId}`).style.display = 'none';
+            commentTextElement.style.display = 'block';
+        } else {
+            console.error('Server returned error:', data);
+            alert(data.error || 'An error occurred while saving your comment');
+        }
+    })
+    .catch(error => {
+        console.error('Error details:', error);
+        alert('An error occurred while saving your comment. Please check the console for details.');
+    });
+}
+
+function confirmDeleteComment(commentId) {
+    if (confirm('Are you sure you want to delete this comment? This cannot be undone.')) {
+        deleteComment(commentId);
+    }
+}
+
+function deleteComment(commentId) {
+    fetch(`/videos/comment/${commentId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Remove the comment from the DOM
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            commentElement.remove();
+        } else {
+            console.error('Server returned error:', data);
+            alert(data.error || 'An error occurred while deleting your comment');
+        }
+    })
+    .catch(error => {
+        console.error('Error details:', error);
+        alert('An error occurred while deleting your comment. Please check the console for details.');
+    });
+}
+</script>
+{% endblock %}

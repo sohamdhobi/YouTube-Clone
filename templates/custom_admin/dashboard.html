@@ -1,0 +1,702 @@
+{% extends 'custom_admin/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-dark text-white p-4 rounded shadow-sm">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2>Welcome, {{ request.user.first_name|default:request.user.username }}</h2>
+                        <p class="mb-0 text-light">
+                            {% if request.user.admin_role %}
+                                {% if request.user.admin_role.level == 1 %}
+                                    You're logged in as a Super Admin
+                                {% elif request.user.admin_role.level == 2 %}
+                                    You're logged in as a Moderator
+                                {% elif request.user.admin_role.level == 3 %}
+                                    You're logged in as Support Staff
+                                {% else %}
+                                    You're logged in as {{ request.user.admin_role.name }}
+                                {% endif %}
+                            {% else %}
+                                You have admin access
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-6 text-light">{{ now|date:"l, F j, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="row mb-4">
+        <!-- Common Stats for All Admins -->
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Total Videos</h6>
+                            <h2 class="mb-0">{{ total_videos|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-video fa-2x text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Total Users</h6>
+                            <h2 class="mb-0">{{ total_users|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-users fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Role-Specific Stats -->
+        {% if request.user.admin_role.level == 1 %}
+        <!-- Super Admin Stats -->
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Admin Users</h6>
+                            <h2 class="mb-0">{{ admin_users|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-user-shield fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Total Reports</h6>
+                            <h2 class="mb-0">{{ total_reports|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if request.user.admin_role.level == 2 %}
+        <!-- Moderator Stats -->
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Pending Reviews</h6>
+                            <h2 class="mb-0">{{ pending_reviews|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-flag fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Recent Flags</h6>
+                            <h2 class="mb-0">{{ recent_flags|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-bell fa-2x text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if request.user.admin_role.level == 3 %}
+        <!-- Support Staff Stats -->
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">New Users (24h)</h6>
+                            <h2 class="mb-0">{{ new_users|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-user-plus fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card admin-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted">Support Requests</h6>
+                            <h2 class="mb-0">{{ recent_support_requests|default:"0" }}</h2>
+                        </div>
+                        <div class="bg-light p-3 rounded">
+                            <i class="fas fa-headset fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions and Main Content -->
+    <div class="row">
+        <!-- Left Column - Actions & Tools -->
+        <div class="col-lg-8">
+            <!-- Role-specific priority cards -->
+            {% if request.user.admin_role.level == 1 %}
+            <!-- Super Admin Priority Card -->
+            <div class="card mb-4 border-danger shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Super Admin Attention Required</h5>
+                </div>
+                <div class="card-body">
+                    {% if escalated_issues %}
+                    <div class="list-group">
+                        {% for issue in escalated_issues %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ issue.title }}</h6>
+                                <small>{{ issue.date }}</small>
+                            </div>
+                            <p class="mb-1">{{ issue.description }}</p>
+                            <small>Escalated by: {{ issue.escalated_by }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i>No escalated issues requiring your attention.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif request.user.admin_role.level == 2 %}
+            <!-- Moderator Priority Card -->
+            <div class="card mb-4 border-warning shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-flag me-2"></i>Content Requiring Moderation</h5>
+                </div>
+                <div class="card-body">
+                    {% if flagged_content %}
+                    <div class="list-group">
+                        {% for item in flagged_content %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ item.title }}</h6>
+                                <small>{{ item.date }}</small>
+                            </div>
+                            <p class="mb-1">{{ item.reason }}</p>
+                            <small>Reported by: {{ item.reported_by }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>No content currently flagged for review.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif request.user.admin_role.level == 3 %}
+            <!-- Support Staff Priority Card -->
+            <div class="card mb-4 border-info shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-headset me-2"></i>Support Queue</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>Users awaiting assistance. Respond to these inquiries first.
+                    </div>
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Account Recovery Request</h6>
+                                <small>2 hours ago</small>
+                            </div>
+                            <p class="mb-1">User cannot log in despite correct credentials</p>
+                            <small>From: user123@example.com</small>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Video Upload Problem</h6>
+                                <small>4 hours ago</small>
+                            </div>
+                            <p class="mb-1">Video processing seems stuck at 80%</p>
+                            <small>From: creator99</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Quick Actions -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if request.user.admin_role.level == 1 %}
+                        <!-- Super Admin Actions -->
+                        <div class="col-md-4">
+                            <a href="{% url 'custom_admin:admin_list' %}" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-user-shield fa-2x mb-3 text-danger"></i>
+                                        <h6 class="mb-0">Manage Admins</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <a href="{% url 'custom_admin:dashboard' %}?settings=general" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-cog fa-2x mb-3 text-dark"></i>
+                                        <h6 class="mb-0">System Settings</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <a href="{% url 'admin:index' %}" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-tools fa-2x mb-3 text-secondary"></i>
+                                        <h6 class="mb-0">Django Admin</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if request.user.admin_role.level == 2 %}
+                        <!-- Moderator Actions -->
+                        <div class="col-md-4">
+                            <a href="{% url 'custom_admin:content_list' %}?filter=reported" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-flag fa-2x mb-3 text-warning"></i>
+                                        <h6 class="mb-0">Review Reported Content</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <a href="{% url 'custom_admin:content_list' %}" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-photo-video fa-2x mb-3 text-danger"></i>
+                                        <h6 class="mb-0">Manage Content</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <a href="{% url 'custom_admin:user_list' %}?filter=warning" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-user-times fa-2x mb-3 text-secondary"></i>
+                                        <h6 class="mb-0">User Warnings</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if request.user.admin_role.level == 3 %}
+                        <!-- Support Staff Actions -->
+                        <div class="col-md-4">
+                            <a href="{% url 'custom_admin:user_list' %}" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-user-cog fa-2x mb-3 text-primary"></i>
+                                        <h6 class="mb-0">User Management</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <a href="#" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-question-circle fa-2x mb-3 text-info"></i>
+                                        <h6 class="mb-0">Support Tickets</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <a href="#" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-file-alt fa-2x mb-3 text-secondary"></i>
+                                        <h6 class="mb-0">Help Articles</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Common actions for all admins -->
+                        <div class="col-md-4">
+                            <a href="{% url 'core:home' %}" class="text-decoration-none">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-home fa-2x mb-3 text-success"></i>
+                                        <h6 class="mb-0">Back to Site</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Activity</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="activityFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Filter
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="activityFilterDropdown">
+                            <li><a class="dropdown-item" href="#">All Activity</a></li>
+                            <li><a class="dropdown-item" href="#">Content</a></li>
+                            <li><a class="dropdown-item" href="#">Users</a></li>
+                            <li><a class="dropdown-item" href="#">Admin</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <!-- Role-specific activity items -->
+                        {% if request.user.admin_role.level == 1 %}
+                        <!-- Super Admin relevant activity -->
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded-circle p-2 me-3">
+                                    <i class="fas fa-user-shield text-danger"></i>
+                                </div>
+                                <div>
+                                    <p class="mb-0">New moderator added: <a href="#" class="fw-bold">moderator_jane</a></p>
+                                    <small class="text-muted">1 hour ago by you</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if request.user.admin_role.level <= 2 %}
+                        <!-- Moderator relevant activity -->
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded-circle p-2 me-3">
+                                    <i class="fas fa-flag text-warning"></i>
+                                </div>
+                                <div>
+                                    <p class="mb-0">Content reported: <a href="#" class="fw-bold">Inappropriate Title Video</a></p>
+                                    <small class="text-muted">5 hours ago by moderator</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded-circle p-2 me-3">
+                                    <i class="fas fa-user-times text-danger"></i>
+                                </div>
+                                <div>
+                                    <p class="mb-0">User warned: <a href="#" class="fw-bold">problem_user42</a> for repeated violations</p>
+                                    <small class="text-muted">Yesterday</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Universal activity items -->
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded-circle p-2 me-3">
+                                    <i class="fas fa-video text-danger"></i>
+                                </div>
+                                <div>
+                                    <p class="mb-0">New video uploaded: <a href="#" class="fw-bold">Ultimate Django Tutorial</a></p>
+                                    <small class="text-muted">2 hours ago by John Smith</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded-circle p-2 me-3">
+                                    <i class="fas fa-user-plus text-success"></i>
+                                </div>
+                                <div>
+                                    <p class="mb-0">New user registered: <a href="#" class="fw-bold">emma_watson</a></p>
+                                    <small class="text-muted">3 hours ago</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white text-center">
+                    <a href="#" class="text-decoration-none">View All Activity</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column - Analytics & Notes -->
+        <div class="col-lg-4">
+            <!-- Role Summary -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Your Role</h5>
+                </div>
+                <div class="card-body">
+                    {% if request.user.admin_role %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="{% if request.user.admin_role.level == 1 %}bg-danger{% elif request.user.admin_role.level == 2 %}bg-warning{% elif request.user.admin_role.level == 3 %}bg-info{% else %}bg-dark{% endif %} rounded-circle p-3 me-3">
+                            <i class="fas fa-user-shield fa-2x text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">
+                                {% if request.user.admin_role.level == 1 %}
+                                    Super Admin
+                                {% elif request.user.admin_role.level == 2 %}
+                                    Moderator
+                                {% elif request.user.admin_role.level == 3 %}
+                                    Support Staff
+                                {% else %}
+                                    {{ request.user.admin_role.name }}
+                                {% endif %}
+                            </h4>
+                            <span class="text-muted">Level {{ request.user.admin_role.level }}</span>
+                        </div>
+                    </div>
+                    
+                    <p>
+                        {% if request.user.admin_role.level == 1 %}
+                            Highest authority with complete oversight and control of the platform. Can manage all aspects including content, users, and system settings.
+                        {% elif request.user.admin_role.level == 2 %}
+                            Focused on day-to-day content moderation and user behavior management. Can review and approve/reject content and handle user violations.
+                        {% elif request.user.admin_role.level == 3 %}
+                            Assist with user support and minor administrative tasks. Can respond to user inquiries and manage low-risk settings.
+                        {% else %}
+                            {{ request.user.admin_role.description }}
+                        {% endif %}
+                    </p>
+                    
+                    <h6 class="mt-4 mb-3">Your Permissions:</h6>
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 p-0 pb-2">
+                            <span><i class="fas fa-users me-2"></i> Manage Users</span>
+                            {% if request.user.admin_role.level <= 3 %}
+                                <span class="badge bg-success rounded-pill">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">No</span>
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 p-0 pb-2">
+                            <span><i class="fas fa-photo-video me-2"></i> Manage Content</span>
+                            {% if request.user.admin_role.level <= 2 %}
+                                <span class="badge bg-success rounded-pill">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">No</span>
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 p-0 pb-2">
+                            <span><i class="fas fa-cog me-2"></i> Manage Settings</span>
+                            {% if request.user.admin_role.level == 1 %}
+                                <span class="badge bg-success rounded-pill">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">No</span>
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 p-0">
+                            <span><i class="fas fa-user-shield me-2"></i> Manage Admins</span>
+                            {% if request.user.admin_role.level == 1 %}
+                                <span class="badge bg-success rounded-pill">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill">No</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        You don't have a specific admin role assigned. Please contact a Super Admin.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Role-specific right panel -->
+            {% if request.user.admin_role.level == 1 %}
+            <!-- Super Admin Panel -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">System Health</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Server Load</span>
+                            <span>{{ system_health.server_load }}%</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if system_health.server_load < 50 %}bg-success{% elif system_health.server_load < 80 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ system_health.server_load }}%" aria-valuenow="{{ system_health.server_load }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Storage</span>
+                            <span>{{ system_health.storage }}%</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if system_health.storage < 50 %}bg-success{% elif system_health.storage < 80 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ system_health.storage }}%" aria-valuenow="{{ system_health.storage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Bandwidth</span>
+                            <span>{{ system_health.bandwidth }}%</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if system_health.bandwidth < 50 %}bg-success{% elif system_health.bandwidth < 80 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ system_health.bandwidth }}%" aria-valuenow="{{ system_health.bandwidth }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="my-3">Admin Actions</h6>
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">View Audit Logs</a>
+                        <a href="#" class="btn btn-sm btn-outline-info">Run System Diagnostics</a>
+                        <a href="#" class="btn btn-sm btn-outline-warning">Backup Database</a>
+                    </div>
+                </div>
+            </div>
+            {% elif request.user.admin_role.level == 2 %}
+            <!-- Moderator Panel -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Moderation Guidelines</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning mb-3">
+                        <h6 class="alert-heading">Content Policy Reminder</h6>
+                        <p class="mb-0 small">All content must comply with community guidelines. When in doubt, escalate to Super Admin.</p>
+                    </div>
+                    <div class="card bg-light mb-3">
+                        <div class="card-body p-3">
+                            <h6>Quick Reference</h6>
+                            <ul class="mb-0 small">
+                                <li>Hate speech, harassment or bullying → Remove immediately</li>
+                                <li>Copyright issues → Remove and notify creator</li>
+                                <li>Borderline content → Add age restriction</li>
+                                <li>Multiple violations → Issue user warning</li>
+                                <li>Repeated warnings → Temporary suspension</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">Moderation Guidelines</a>
+                        <a href="#" class="btn btn-sm btn-outline-warning">Escalate Issue</a>
+                    </div>
+                </div>
+            </div>
+            {% elif request.user.admin_role.level == 3 %}
+            <!-- Support Staff Panel -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Support Resources</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6 class="alert-heading">Response Guidelines</h6>
+                        <p class="mb-0 small">Aim to respond to all inquiries within 24 hours. For complex issues, escalate to Moderators.</p>
+                    </div>
+                    
+                    <h6 class="mb-2">Common Issues</h6>
+                    <div class="list-group mb-3">
+                        <a href="#" class="list-group-item list-group-item-action py-2 small">Account Recovery</a>
+                        <a href="#" class="list-group-item list-group-item-action py-2 small">Video Upload Problems</a>
+                        <a href="#" class="list-group-item list-group-item-action py-2 small">Copyright Concerns</a>
+                        <a href="#" class="list-group-item list-group-item-action py-2 small">Payment Issues</a>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">Help Center</a>
+                        <a href="#" class="btn btn-sm btn-outline-info">Canned Responses</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <!-- Default Panel -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Admin Notes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <h6 class="alert-heading">Quick Reference</h6>
+                        <p class="mb-0 small">Use the sidebar to navigate between different admin features based on your permissions.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="adminNotes" class="form-label">Personal Notes</label>
+                        <textarea class="form-control" id="adminNotes" rows="4" placeholder="Write your admin notes here..."></textarea>
+                    </div>
+                    <button class="btn btn-primary btn-sm">Save Notes</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

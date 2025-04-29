@@ -1,0 +1,685 @@
+{% extends 'custom_admin/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load admin_filters %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h3">Content Management</h2>
+        <div>
+            <a href="{% url 'custom_admin:dashboard' %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-chart-bar me-1"></i>Dashboard
+            </a>
+            <a href="{% url 'custom_admin:content_cleanup' %}" class="btn btn-outline-warning">
+                <i class="fas fa-broom me-2"></i>Cleanup Orphaned Content
+            </a>
+        </div>
+    </div>
+    
+    <!-- Content statistics bar -->
+    <div class="card mb-3 shadow-sm">
+        <div class="card-body py-2">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-film text-primary me-2"></i>
+                        <div>
+                            <h6 class="mb-0">Total Content</h6>
+                            <span class="h5 mb-0">{{ page_obj.paginator.count }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-video text-danger me-2"></i>
+                        <div>
+                            <h6 class="mb-0">Videos</h6>
+                            <span class="text-muted small">{{ video_count|default:'--' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-image text-info me-2"></i>
+                        <div>
+                            <h6 class="mb-0">Photos</h6>
+                            <span class="text-muted small">{{ photo_count|default:'--' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-blog text-success me-2"></i>
+                        <div>
+                            <h6 class="mb-0">Blogs</h6>
+                            <span class="text-muted small">{{ blog_count|default:'--' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body pb-1">
+            <div class="row">
+                <!-- Content Type Filters -->
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-muted small mb-2">CONTENT TYPE</h6>
+                    <div class="btn-group w-100">
+                        <a href="{% url 'custom_admin:content_list' %}" class="btn{% if content_type == 'all' and filter_type == 'all' %} btn-primary{% else %} btn-outline-primary{% endif %}">
+                            <i class="fas fa-th-large me-1"></i> All Content
+                        </a>
+                        <a href="{% url 'custom_admin:content_list' %}?type=video" class="btn{% if content_type == 'video' %} btn-primary{% else %} btn-outline-primary{% endif %}">
+                            <i class="fas fa-video me-1"></i> Videos
+                        </a>
+                        <a href="{% url 'custom_admin:content_list' %}?type=photo" class="btn{% if content_type == 'photo' %} btn-primary{% else %} btn-outline-primary{% endif %}">
+                            <i class="fas fa-image me-1"></i> Photos
+                        </a>
+                        <a href="{% url 'custom_admin:content_list' %}?type=blog" class="btn{% if content_type == 'blog' %} btn-primary{% else %} btn-outline-primary{% endif %}">
+                            <i class="fas fa-blog me-1"></i> Blogs
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Status Filters -->
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-muted small mb-2">STATUS</h6>
+                    <div class="btn-group w-100">
+                        <a href="{% url 'custom_admin:content_list' %}?filter=pending_moderation" class="btn{% if filter_type == 'pending_moderation' %} btn-warning{% else %} btn-outline-warning{% endif %}">
+                            <i class="fas fa-tasks me-1"></i> Pending Moderation
+                        </a>
+                        <a href="{% url 'custom_admin:content_list' %}?filter=reported" class="btn{% if filter_type == 'reported' %} btn-danger{% else %} btn-outline-danger{% endif %}">
+                            <i class="fas fa-flag me-1"></i> Reported
+                        </a>
+                        <a href="{% url 'custom_admin:content_list' %}?filter=trending" class="btn{% if filter_type == 'trending' %} btn-success{% else %} btn-outline-success{% endif %}">
+                            <i class="fas fa-chart-line me-1"></i> Trending
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search -->
+            <div class="row mb-2">
+                <div class="col-md-12">
+                    <form method="get" action="{% url 'custom_admin:content_list' %}" class="d-flex">
+                        <input type="hidden" name="filter" value="{{ filter_type }}">
+                        <input type="hidden" name="type" value="{{ content_type }}">
+                        <input type="text" name="search" class="form-control me-2" placeholder="Search content by title, description or creator..." value="{{ search_query|default:'' }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Grid -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="form-check me-3">
+                    <input class="form-check-input" type="checkbox" id="select-all">
+                    <label class="form-check-label" for="select-all">Select All</label>
+                </div>
+                <h5 class="mb-0">
+                    {% if filter_type == 'trending' %}Trending 
+                    {% elif filter_type == 'reported' %}Reported 
+                    {% endif %}
+                    
+                    {% if content_type == 'video' %}Videos
+                    {% elif content_type == 'shorts' %}Shorts
+                    {% elif content_type == 'live' %}Live Streams
+                    {% else %}Content
+                    {% endif %}
+                </h5>
+            </div>
+            <span class="badge bg-primary">{{ page_obj.paginator.count }} items</span>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'custom_admin:content_list' %}" id="content-form">
+                {% csrf_token %}
+                <div class="row g-4">
+                    {% for video in page_obj %}
+                    <div class="col-md-4 col-lg-3">
+                        <div class="card h-100">
+                            <div class="position-absolute top-0 start-0 m-2 z-index-1">
+                                <div class="form-check">
+                                    <input class="form-check-input content-checkbox" type="checkbox" name="selected_content" value="{{ video.id }}" id="check{{ video.id }}">
+                                    <label class="form-check-label" for="check{{ video.id }}"></label>
+                                </div>
+                            </div>
+                            
+                            <!-- Content Thumbnail/Preview -->
+                            {% if video.content_type == 'video' %}
+                                <div class="video-thumbnail">
+                                    <img src="{{ video.thumbnail.url|default:'https://via.placeholder.com/640x360?text=No+Thumbnail' }}" 
+                                         alt="{{ video.title }}">
+                                    <div class="position-absolute bottom-0 end-0 m-2">
+                                        <span class="badge bg-dark">
+                                            <i class="fas fa-video"></i> Video
+                                        </span>
+                                    </div>
+                                </div>
+                            {% elif video.content_type == 'photo' %}
+                                <div class="video-thumbnail">
+                                    <img src="{{ video.image.url|default:'https://via.placeholder.com/640x360?text=No+Image' }}" 
+                                         alt="{{ video.title }}">
+                                    <div class="position-absolute bottom-0 end-0 m-2">
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-image"></i> Photo
+                                        </span>
+                                    </div>
+                                </div>
+                            {% elif video.content_type == 'blog' %}
+                                <div class="video-thumbnail">
+                                    <img src="{{ video.thumbnail.url|default:'https://via.placeholder.com/640x360?text=Blog+Post' }}" 
+                                         alt="{{ video.title }}">
+                                    <div class="position-absolute bottom-0 end-0 m-2">
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-blog"></i> Blog
+                                        </span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="video-thumbnail">
+                                    <img src="https://via.placeholder.com/640x360?text=Unknown+Type" 
+                                         alt="{{ video.title }}">
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Status Badges -->
+                            <div class="position-absolute top-0 end-0 m-2">
+                                {% if filter_type == 'reported' %}
+                                <span class="badge bg-danger">Reported</span>
+                                {% endif %}
+                                
+                                {% if video.requires_moderation %}
+                                    {% if video.moderation_status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending Review</span>
+                                    {% elif video.moderation_status == 'approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                    {% elif video.moderation_status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% if not video.is_published %}
+                                <span class="badge bg-secondary">Not Published</span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Card Body -->
+                            <div class="card-body py-2">
+                                <h6 class="card-title mb-1 text-truncate">{{ video.title|default:"No Title" }}</h6>
+                                
+                                <!-- Creator Information -->
+                                <p class="card-subtitle small mb-1">
+                                    <span class="d-flex align-items-center">
+                                        {% if video.creator %}
+                                            <img src="{% if video.creator.avatar %}{{ video.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                                alt="{{ video.creator.username }}" class="rounded-circle me-1" style="width: 24px; height: 24px; object-fit: cover;">
+                                            <a href="{% url 'custom_admin:user_detail' video.creator.id %}" class="text-truncate">{{ video.creator.username }}</a>
+                                        {% else %}
+                                            <img src="{% static 'images/default-avatar.png' %}" 
+                                                alt="Unknown User" class="rounded-circle me-1" style="width: 24px; height: 24px; object-fit: cover;">
+                                            <span class="text-truncate">Unknown User</span>
+                                        {% endif %}
+                                    </span>
+                                </p>
+                                
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <div class="mt-1">
+                                            <i class="fas fa-eye"></i> {{ video.views|intcomma }} views • {{ video.created_at|date:"M d, Y" }}
+                                        </div>
+                                    </small>
+                                </p>
+                            </div>
+                            
+                            <div class="card-footer bg-transparent border-top-0">
+                                <div class="btn-group btn-group-sm w-100">
+                                    <a href="{% url 'custom_admin:content_detail' video.id %}" class="btn btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    {% if video.requires_moderation and video.moderation_status == 'pending' %}
+                                    <form method="post" action="{% url 'custom_admin:content_detail' video.id %}" class="d-inline" style="flex: 1;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="moderate_content">
+                                        <input type="hidden" name="moderation_status" value="approved">
+                                        <input type="hidden" name="moderation_action" value="approve_publish">
+                                        <button type="submit" class="btn btn-outline-success w-100">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No content found matching the selected criteria.
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Move the bulk_action select field inside the form -->
+                <input type="hidden" name="bulk_action" id="bulk_action_hidden">
+                <input type="hidden" name="moderation_notes" id="moderation_notes_hidden">
+                <input type="hidden" name="notify_creators" id="notify_creators_hidden" value="1">
+                <input type="hidden" name="send_warning" id="send_warning_hidden" value="0">
+                <input type="hidden" name="warning_message" id="warning_message_hidden">
+            </form>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white">
+            <nav aria-label="Content list pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if content_type != 'all' %}&type={{ content_type }}{% endif %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if content_type != 'all' %}&type={{ content_type }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if content_type != 'all' %}&type={{ content_type }}{% endif %}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if content_type != 'all' %}&type={{ content_type }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if content_type != 'all' %}&type={{ content_type }}{% endif %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Bulk Moderation -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Bulk Moderation</h5>
+            <span class="badge bg-primary"><span id="selected-count">0</span> items selected</span>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="bulk_action" class="form-label">Action</label>
+                    <select class="form-select" id="bulk_action" required>
+                        <option value="">Select an action...</option>
+                        <option value="approve">Approve Content</option>
+                        <option value="reject">Reject Content</option>
+                        <option value="publish">Publish</option>
+                        <option value="unpublish">Unpublish</option>
+                        <option value="delete">Delete Content</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="moderation_notes" class="form-label">Internal Notes</label>
+                    <textarea class="form-control" id="moderation_notes" name="moderation_notes" rows="2" placeholder="Add internal notes about the moderation action..."></textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Options</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="notify_creators" name="notify_creators">
+                        <label class="form-check-label" for="notify_creators">
+                            Notify Creators
+                        </label>
+                    </div>
+                    
+                    <div id="creator_message_container" class="mt-2" style="display: none;">
+                        <label for="creator_message" class="form-label">Message to Creators</label>
+                        <textarea class="form-control" id="creator_message" name="creator_message" rows="2" placeholder="Explain the moderation action to the creators (will use default message if empty)..."></textarea>
+                        <div class="form-text">Leave empty to use a default message based on the action taken.</div>
+                    </div>
+                    
+                    <!-- Add warning to user option -->
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="send_warning" value="1">
+                        <label class="form-check-label" for="send_warning">
+                            Send warning to user
+                        </label>
+                    </div>
+                    
+                    <!-- Warning message textarea (appears when checkbox is checked) -->
+                    <div id="warning_message_container" class="mt-2" style="display: none;">
+                        <label for="warning_message" class="form-label">Warning Message</label>
+                        <textarea class="form-control" id="warning_message" rows="2" placeholder="Explain policy violation or reason for warning..."></textarea>
+                    </div>
+                    
+                    <div class="form-text mt-1">For policy violations or content issues</div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-primary bulk-action-btn disabled" id="apply-bulk-action">
+                    <i class="fas fa-check me-2"></i>Apply to Selected Items
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for bulk actions -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle bulk selection
+    const selectAllCheckbox = document.getElementById('select-all');
+    const contentCheckboxes = document.querySelectorAll('.content-checkbox');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            
+            contentCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                updateCardSelection(checkbox);
+            });
+            
+            updateBulkActionStatus();
+        });
+    }
+    
+    // Individual checkbox handling
+    contentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateCardSelection(this);
+            updateBulkActionStatus();
+            
+            // Update "select all" checkbox state
+            if (selectAllCheckbox) {
+                const allChecked = Array.from(contentCheckboxes).every(cb => cb.checked);
+                const someChecked = Array.from(contentCheckboxes).some(cb => cb.checked);
+                
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
+        });
+        
+        // Make the entire card clickable to toggle the checkbox
+        const card = checkbox.closest('.card');
+        if (card) {
+            card.addEventListener('click', function(e) {
+                // Don't toggle if clicking on links or buttons inside the card
+                if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                    e.target.closest('a') || e.target.closest('button') || 
+                    e.target === checkbox) {
+                    return;
+                }
+                
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            });
+        }
+    });
+    
+    // Handle warning checkbox toggle
+    const sendWarningCheckbox = document.getElementById('send_warning');
+    const warningMessageContainer = document.getElementById('warning_message_container');
+    
+    if (sendWarningCheckbox && warningMessageContainer) {
+        sendWarningCheckbox.addEventListener('change', function() {
+            warningMessageContainer.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+    
+    // Handle bulk actions apply button
+    const applyBulkActionBtn = document.getElementById('apply-bulk-action');
+    const contentForm = document.getElementById('content-form');
+    
+    if (applyBulkActionBtn && contentForm) {
+        applyBulkActionBtn.addEventListener('click', function() {
+            const selectedCheckboxes = document.querySelectorAll('.content-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one item to apply the action.');
+                return;
+            }
+            
+            const bulkAction = document.getElementById('bulk_action').value;
+            if (!bulkAction) {
+                alert('Please select an action to perform.');
+                return;
+            }
+            
+            // Set hidden form values
+            document.getElementById('bulk_action_hidden').value = bulkAction;
+            document.getElementById('moderation_notes_hidden').value = document.getElementById('moderation_notes').value;
+            document.getElementById('notify_creators_hidden').value = document.getElementById('notify_creators').checked ? '1' : '0';
+            
+            // Set warning values
+            const sendWarning = document.getElementById('send_warning').checked;
+            document.getElementById('send_warning_hidden').value = sendWarning ? '1' : '0';
+            document.getElementById('warning_message_hidden').value = document.getElementById('warning_message').value;
+            
+            // Validate warning message if warning is enabled
+            if (sendWarning && !document.getElementById('warning_message').value.trim()) {
+                alert('Please enter a warning message to send to the user.');
+                return;
+            }
+            
+            // Confirm if deleting
+            if (bulkAction === 'delete') {
+                if (!confirm('Are you sure you want to delete the selected items? This action cannot be undone.')) {
+                    return;
+                }
+            }
+            
+            // Submit the form
+            contentForm.submit();
+        });
+    }
+    
+    // Update the visual selection of a card
+    function updateCardSelection(checkbox) {
+        const card = checkbox.closest('.card');
+        if (card) {
+            if (checkbox.checked) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        }
+    }
+    
+    // Update bulk action buttons based on selection
+    function updateBulkActionStatus() {
+        const bulkActionButtons = document.querySelectorAll('.bulk-action-btn');
+        const hasSelection = Array.from(contentCheckboxes).some(cb => cb.checked);
+        
+        bulkActionButtons.forEach(button => {
+            button.disabled = !hasSelection;
+            if (hasSelection) {
+                button.classList.remove('disabled');
+            } else {
+                button.classList.add('disabled');
+            }
+        });
+        
+        // Update count of selected items
+        const selectedCount = Array.from(contentCheckboxes).filter(cb => cb.checked).length;
+        const selectedCountElement = document.getElementById('selected-count');
+        if (selectedCountElement) {
+            selectedCountElement.textContent = selectedCount;
+        }
+    }
+
+    // Toggle creator message field visibility
+    const notifyCreatorsCheckbox = document.getElementById('notify_creators');
+    const creatorMessageContainer = document.getElementById('creator_message_container');
+    
+    function toggleCreatorMessage() {
+        creatorMessageContainer.style.display = notifyCreatorsCheckbox.checked ? 'block' : 'none';
+    }
+    
+    notifyCreatorsCheckbox.addEventListener('change', toggleCreatorMessage);
+    toggleCreatorMessage(); // Initial state
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-check {
+        position: relative;
+        z-index: 10;
+    }
+    
+    .content-checkbox {
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .video-thumbnail {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 aspect ratio */
+        overflow: hidden;
+    }
+    
+    .video-thumbnail img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    /* Add styles for selected cards */
+    .card.selected {
+        border: 2px solid #007bff;
+        box-shadow: 0 0 0 1px #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle bulk selection
+        const selectAllCheckbox = document.getElementById('select-all');
+        const contentCheckboxes = document.querySelectorAll('.content-checkbox');
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                
+                contentCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                    updateCardSelection(checkbox);
+                });
+                
+                updateBulkActionStatus();
+            });
+        }
+        
+        // Individual checkbox handling
+        contentCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateCardSelection(this);
+                updateBulkActionStatus();
+                
+                // Update "select all" checkbox state
+                if (selectAllCheckbox) {
+                    const allChecked = Array.from(contentCheckboxes).every(cb => cb.checked);
+                    const someChecked = Array.from(contentCheckboxes).some(cb => cb.checked);
+                    
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                }
+            });
+            
+            // Make the entire card clickable to toggle the checkbox
+            const card = checkbox.closest('.card');
+            if (card) {
+                card.addEventListener('click', function(e) {
+                    // Don't toggle if clicking on links or buttons inside the card
+                    if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                        e.target.closest('a') || e.target.closest('button') || 
+                        e.target === checkbox) {
+                        return;
+                    }
+                    
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                });
+            }
+        });
+        
+        // Update the visual selection of a card
+        function updateCardSelection(checkbox) {
+            const card = checkbox.closest('.card');
+            if (card) {
+                if (checkbox.checked) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            }
+        }
+        
+        // Update bulk action buttons based on selection
+        function updateBulkActionStatus() {
+            const bulkActionButtons = document.querySelectorAll('.bulk-action-btn');
+            const hasSelection = Array.from(contentCheckboxes).some(cb => cb.checked);
+            
+            bulkActionButtons.forEach(button => {
+                button.disabled = !hasSelection;
+                if (hasSelection) {
+                    button.classList.remove('disabled');
+                } else {
+                    button.classList.add('disabled');
+                }
+            });
+            
+            // Update count of selected items
+            const selectedCount = Array.from(contentCheckboxes).filter(cb => cb.checked).length;
+            const selectedCountElement = document.getElementById('selected-count');
+            if (selectedCountElement) {
+                selectedCountElement.textContent = selectedCount;
+            }
+        }
+    });
+</script>
+{% endblock %} 

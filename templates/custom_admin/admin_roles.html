@@ -1,0 +1,483 @@
+{% extends 'custom_admin/base.html' %}
+{% load static %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumb and Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:admin_list' %}">Admins</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Roles</li>
+            </ol>
+        </nav>
+        <div>
+            <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+                <i class="fas fa-plus me-2"></i>Create Role
+            </a>
+        </div>
+    </div>
+    
+    <!-- Admin Roles Table -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Admin Roles</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Role Name</th>
+                        <th scope="col">Level</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Permissions</th>
+                        <th scope="col">Users</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for role in roles %}
+                    <tr>
+                        <td>
+                            {% if role.level == 1 %}
+                            <span class="badge bg-danger me-2">Super Admin</span>
+                            {% elif role.level == 2 %}
+                            <span class="badge bg-warning me-2">Moderator</span>
+                            {% elif role.level == 3 %}
+                            <span class="badge bg-info me-2">Support Staff</span>
+                            {% else %}
+                            <span class="badge bg-secondary me-2">Custom</span>
+                            {% endif %}
+                            {{ role.name }}
+                        </td>
+                        <td>{{ role.level }}</td>
+                        <td>{{ role.description|truncatechars:100 }}</td>
+                        <td>
+                            {% if role.level == 1 %}
+                            <span class="badge bg-light text-dark me-1">All Permissions</span>
+                            {% else %}
+                            {% if role.level <= 3 %}
+                            <span class="badge bg-light text-dark me-1">Manage Users</span>
+                            {% endif %}
+                            {% if role.level <= 2 %}
+                            <span class="badge bg-light text-dark me-1">Manage Content</span>
+                            {% endif %}
+                            {% if role.level == 1 %}
+                            <span class="badge bg-light text-dark me-1">Manage Settings</span>
+                            <span class="badge bg-light text-dark">Manage Admins</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with role_user_count=role.admin_users.count|default:0 %}
+                            {% if role_user_count > 0 %}
+                            <a href="{% url 'custom_admin:admin_list' %}?role={{ role.id }}" class="badge bg-primary">{{ role_user_count }} users</a>
+                            {% else %}
+                            <span class="badge bg-secondary">No users</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="#" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editRoleModal" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if role.level > 3 %}
+                                <a href="#" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteRoleModal" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">No admin roles defined.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Role Permissions Overview -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Default Role Permissions</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Permission</th>
+                            <th scope="col" class="text-center">Super Admin</th>
+                            <th scope="col" class="text-center">Moderator</th>
+                            <th scope="col" class="text-center">Support Staff</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>View Dashboard</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Manage Users</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Manage Content</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Remove Content</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Manage System Settings</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Manage Admins</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                        <tr>
+                            <td>View Analytics</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Manage Categories</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Access Django Admin</td>
+                            <td class="text-center"><i class="fas fa-check text-success"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                            <td class="text-center"><i class="fas fa-times text-danger"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Role Modal -->
+<div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createRoleModalLabel">Create New Admin Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'custom_admin:admin_roles' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_role">
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="roleName" class="form-label">Role Name</label>
+                            <input type="text" class="form-control" id="roleName" name="role_name" placeholder="Enter role name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="roleLevel" class="form-label">Access Level</label>
+                            <select class="form-select" id="roleLevel" name="role_level">
+                                <option value="4">Custom (Level 4)</option>
+                                <option value="3">Support Staff (Level 3)</option>
+                                <option value="2">Moderator (Level 2)</option>
+                                <option value="1">Super Admin (Level 1)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="roleDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="roleDescription" name="role_description" rows="3" placeholder="Describe this role's responsibilities"></textarea>
+                    </div>
+                    
+                    <h6 class="mb-3">Permissions</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="permManageUsers" name="perm_manage_users">
+                                <label class="form-check-label" for="permManageUsers">
+                                    Manage Users
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="permManageContent" name="perm_manage_content">
+                                <label class="form-check-label" for="permManageContent">
+                                    Manage Content
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="permViewAnalytics" name="perm_view_analytics">
+                                <label class="form-check-label" for="permViewAnalytics">
+                                    View Analytics
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="permManageCategories" name="perm_manage_categories">
+                                <label class="form-check-label" for="permManageCategories">
+                                    Manage Categories
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="permManageSettings" name="perm_manage_settings">
+                                <label class="form-check-label" for="permManageSettings">
+                                    Manage System Settings
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="permManageAdmins" name="perm_manage_admins">
+                                <label class="form-check-label" for="permManageAdmins">
+                                    Manage Admins
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Role Modal -->
+<div class="modal fade" id="editRoleModal" tabindex="-1" aria-labelledby="editRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editRoleModalLabel">Edit Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'custom_admin:admin_roles' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_role">
+                <div class="modal-body">
+                    <p>Editing role: <strong id="editRoleName">Role Name</strong></p>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="editRoleNameInput" class="form-label">Role Name</label>
+                            <input type="text" class="form-control" id="editRoleNameInput" name="role_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editRoleLevel" class="form-label">Access Level</label>
+                            <select class="form-select" id="editRoleLevel" name="role_level">
+                                <option value="4">Custom (Level 4)</option>
+                                <option value="3">Support Staff (Level 3)</option>
+                                <option value="2">Moderator (Level 2)</option>
+                                <option value="1">Super Admin (Level 1)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRoleDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editRoleDescription" name="role_description" rows="3"></textarea>
+                    </div>
+                    
+                    <h6 class="mb-3">Permissions</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPermManageUsers" name="perm_manage_users">
+                                <label class="form-check-label" for="editPermManageUsers">
+                                    Manage Users
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPermManageContent" name="perm_manage_content">
+                                <label class="form-check-label" for="editPermManageContent">
+                                    Manage Content
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPermViewAnalytics" name="perm_view_analytics">
+                                <label class="form-check-label" for="editPermViewAnalytics">
+                                    View Analytics
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPermManageCategories" name="perm_manage_categories">
+                                <label class="form-check-label" for="editPermManageCategories">
+                                    Manage Categories
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPermManageSettings" name="perm_manage_settings">
+                                <label class="form-check-label" for="editPermManageSettings">
+                                    Manage System Settings
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editPermManageAdmins" name="perm_manage_admins">
+                                <label class="form-check-label" for="editPermManageAdmins">
+                                    Manage Admins
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="editRoleId" name="role_id" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Role Modal -->
+<div class="modal fade" id="deleteRoleModal" tabindex="-1" aria-labelledby="deleteRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteRoleModalLabel">Delete Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'custom_admin:admin_roles' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_role">
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>You are about to delete the role <strong id="deleteRoleName">Role Name</strong>.
+                    </div>
+                    <p>This action cannot be undone. Any users with this role will need to be reassigned.</p>
+                    <div class="mb-3">
+                        <label for="reassignRole" class="form-label">Reassign Users To</label>
+                        <select class="form-select" id="reassignRole" name="reassign_role">
+                            <option value="">No Reassignment (Remove Admin Status)</option>
+                            <option value="3">Support Staff</option>
+                            <option value="2">Moderator</option>
+                            <option value="1">Super Admin</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="deleteRoleId" name="role_id" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Script to populate modal data when triggered
+    document.addEventListener('DOMContentLoaded', function() {
+        const editRoleModal = document.getElementById('editRoleModal');
+        if (editRoleModal) {
+            editRoleModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const roleId = button.getAttribute('data-role-id');
+                const roleName = button.getAttribute('data-role-name');
+                
+                document.getElementById('editRoleId').value = roleId;
+                document.getElementById('editRoleName').textContent = roleName;
+                document.getElementById('editRoleNameInput').value = roleName;
+                // Here you would normally fetch the role details and populate the form
+            });
+        }
+        
+        const deleteRoleModal = document.getElementById('deleteRoleModal');
+        if (deleteRoleModal) {
+            deleteRoleModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const roleId = button.getAttribute('data-role-id');
+                const roleName = button.getAttribute('data-role-name');
+                
+                document.getElementById('deleteRoleId').value = roleId;
+                document.getElementById('deleteRoleName').textContent = roleName;
+            });
+        }
+        
+        // Update checkbox state based on role level selection
+        const roleLevelSelect = document.getElementById('roleLevel');
+        if (roleLevelSelect) {
+            roleLevelSelect.addEventListener('change', function() {
+                updatePermissionsByLevel(this.value);
+            });
+            // Initialize permissions based on default selection
+            updatePermissionsByLevel(roleLevelSelect.value);
+        }
+        
+        function updatePermissionsByLevel(level) {
+            level = parseInt(level);
+            
+            // Reset all checkboxes
+            document.querySelectorAll('#createRoleModal .form-check-input').forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.disabled = false;
+            });
+            
+            // Set checkboxes based on level
+            if (level <= 3) {
+                document.getElementById('permManageUsers').checked = true;
+            }
+            
+            if (level <= 2) {
+                document.getElementById('permManageContent').checked = true;
+                document.getElementById('permViewAnalytics').checked = true;
+                document.getElementById('permManageCategories').checked = true;
+            }
+            
+            if (level == 1) {
+                document.querySelectorAll('#createRoleModal .form-check-input').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            }
+            
+            // Disable checkboxes for standard roles
+            if (level < 4) {
+                document.querySelectorAll('#createRoleModal .form-check-input').forEach(checkbox => {
+                    checkbox.disabled = true;
+                });
+            }
+        }
+    });
+</script>
+{% endblock %} 

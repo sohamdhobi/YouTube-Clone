@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - YouTube Clone{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-sidebar {
+        background-color: #343a40;
+        min-height: calc(100vh - 56px);
+    }
+    
+    .admin-sidebar .nav-link {
+        color: rgba(255, 255, 255, 0.75);
+        padding: 0.75rem 1rem;
+        border-left: 3px solid transparent;
+    }
+    
+    .admin-sidebar .nav-link:hover {
+        color: rgba(255, 255, 255, 0.9);
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .admin-sidebar .nav-link.active {
+        color: #fff;
+        border-left: 3px solid #dc3545;
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .admin-sidebar .nav-link i {
+        width: 20px;
+        text-align: center;
+        margin-right: 0.5rem;
+    }
+    
+    .admin-content {
+        padding: 1.5rem;
+    }
+    
+    .admin-stat-card {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .admin-role-badge {
+        background-color: #dc3545;
+        color: white;
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        margin-top: 5px;
+    }
+    
+    .nav-section {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .nav-section-title {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        padding: 0.5rem 1rem;
+        margin-top: 1rem;
+    }
+    
+    .sub-nav-link {
+        padding-left: 2.25rem !important;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 admin-sidebar py-3">
+            <div class="d-flex flex-column align-items-start mb-4 px-3">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-shield-alt text-danger me-2"></i>
+                    <h5 class="mb-0 text-white">Admin Panel</h5>
+                </div>
+                {% if request.user.admin_role %}
+                <div class="admin-role-badge">
+                    {{ request.user.admin_role.name }}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Sidebar Menu -->
+            <div class="list-group mt-3">
+                <a href="{% url 'custom_admin:dashboard' %}" class="list-group-item list-group-item-action{% if admin_section == 'dashboard' %} active{% endif %}">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+                <a href="{% url 'custom_admin:content_list' %}" class="list-group-item list-group-item-action{% if admin_section == 'content' %} active{% endif %}">
+                    <i class="fas fa-photo-video me-2"></i>Content
+                    <div class="float-end">
+                        <span class="badge bg-danger rounded-pill">{{ pending_moderation_count|default:'0' }}</span>
+                    </div>
+                </a>
+                <div class="ps-4 small pt-2 pb-2 text-muted">Content Types</div>
+                <a href="{% url 'custom_admin:content_list' %}?type=video" class="list-group-item list-group-item-action ps-4{% if admin_section == 'content' and content_type == 'video' %} active{% endif %}">
+                    <i class="fas fa-video me-2"></i>Videos
+                </a>
+                <a href="{% url 'custom_admin:content_list' %}?type=photo" class="list-group-item list-group-item-action ps-4{% if admin_section == 'content' and content_type == 'photo' %} active{% endif %}">
+                    <i class="fas fa-image me-2"></i>Photos
+                </a>
+                <a href="{% url 'custom_admin:content_list' %}?type=blog" class="list-group-item list-group-item-action ps-4{% if admin_section == 'content' and content_type == 'blog' %} active{% endif %}">
+                    <i class="fas fa-blog me-2"></i>Blog Posts
+                </a>
+                <div class="ps-4 small pt-2 pb-2 text-muted">Moderation</div>
+                <a href="{% url 'custom_admin:content_list' %}?filter=pending_moderation" class="list-group-item list-group-item-action ps-4{% if admin_section == 'content' and filter_type == 'pending_moderation' %} active{% endif %}">
+                    <i class="fas fa-tasks me-2"></i>Pending Review
+                </a>
+                <a href="{% url 'custom_admin:content_list' %}?filter=reported" class="list-group-item list-group-item-action ps-4{% if admin_section == 'content' and filter_type == 'reported' %} active{% endif %}">
+                    <i class="fas fa-flag me-2"></i>Reported Content
+                </a>
+                <a href="{% url 'custom_admin:user_list' %}" class="list-group-item list-group-item-action{% if admin_section == 'users' %} active{% endif %}">
+                    <i class="fas fa-users me-2"></i>Users
+                </a>
+                <a href="{% url 'custom_admin:dashboard' %}" class="list-group-item list-group-item-action{% if admin_section == 'reports' %} active{% endif %}">
+                    <i class="fas fa-chart-bar me-2"></i>Analytics
+                </a>
+                <a href="{% url 'custom_admin:admin_list' %}" class="list-group-item list-group-item-action{% if admin_section == 'admins' %} active{% endif %}">
+                    <i class="fas fa-user-shield me-2"></i>Admin Management
+                </a>
+                <!-- Settings section is not implemented yet -->
+                <a href="{% url 'custom_admin:dashboard' %}" class="list-group-item list-group-item-action{% if admin_section == 'settings' %} active{% endif %}">
+                    <i class="fas fa-cog me-2"></i>Settings
+                </a>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <main class="col-md-9 col-lg-10 admin-content">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Admin-specific JS -->
+<script>
+    // Initialize all Bootstrap components for admin pages
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize dropdowns with explicit creation and configuration
+        document.querySelectorAll('.dropdown-toggle').forEach(function(dropdownToggle) {
+            var dropdown = new bootstrap.Dropdown(dropdownToggle, {
+                autoClose: true
+            });
+        });
+        
+        // Initialize all modal elements
+        document.querySelectorAll('.modal').forEach(function(modalEl) {
+            var modal = new bootstrap.Modal(modalEl);
+        });
+        
+        // Ensure form buttons in dropdowns work correctly
+        document.querySelectorAll('.dropdown-menu form button').forEach(function(button) {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation(); // Don't close dropdown on click
+                var form = this.closest('form');
+                if (form) {
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
+<!-- Additional page-specific JS can be added in child templates -->
+{% block page_specific_js %}{% endblock %}
+{{ block.super }}
+{% endblock %} 

@@ -1,0 +1,149 @@
+{% extends 'custom_admin/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumb and Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:content_list' %}">Content</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Cleanup</li>
+            </ol>
+        </nav>
+    </div>
+    
+    <!-- Orphaned Videos Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Orphaned Content (No Creator Associated)</h5>
+        </div>
+        <div class="card-body">
+            {% if orphaned_videos %}
+            <form method="post" id="cleanupForm">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAll">Select All</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">Deselect All</button>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" name="action" value="delete" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete the selected videos? This cannot be undone.')">
+                                <i class="fas fa-trash me-1"></i>Delete Selected
+                            </button>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#assignModal">
+                                <i class="fas fa-user-tag me-1"></i>Assign to Creator
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    {% for video in orphaned_videos %}
+                    <div class="col-md-3 mb-4">
+                        <div class="card h-100">
+                            <div class="form-check position-absolute top-0 end-0 m-2">
+                                <input class="form-check-input video-checkbox" type="checkbox" name="video_ids" value="{{ video.id }}" id="video{{ video.id }}">
+                            </div>
+                            <img src="{{ video.thumbnail.url|default:'https://via.placeholder.com/320x180?text=No+Thumbnail' }}" 
+                                 class="card-img-top" alt="{{ video.title }}" style="height: 160px; object-fit: cover;">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ video.title|truncatechars:60 }}</h6>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>No creator</span>
+                                        <br>
+                                        {{ video.views|intcomma }} views • {{ video.created_at|date:"M d, Y" }}
+                                    </small>
+                                </p>
+                                <div class="btn-group btn-group-sm w-100">
+                                    <a href="{% url 'custom_admin:content_detail' video.id %}" class="btn btn-outline-secondary">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Assign to User Modal -->
+                <div class="modal fade" id="assignModal" tabindex="-1" aria-labelledby="assignModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="assignModalLabel">Assign Content to Creator</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="assignToUser" class="form-label">Select Creator</label>
+                                    <select class="form-select" id="assignToUser" name="assign_to" required>
+                                        <option value="">Select a creator</option>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}">{{ user.username }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <p class="text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    This will assign all selected content to the chosen creator.
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" name="action" value="assign" class="btn btn-primary">Assign Content</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>There are no orphaned videos in the system.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select/deselect all functionality
+    const selectAllBtn = document.getElementById('selectAll');
+    const deselectAllBtn = document.getElementById('deselectAll');
+    const checkboxes = document.querySelectorAll('.video-checkbox');
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+    }
+    
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+    }
+    
+    // Form submission validation
+    const cleanupForm = document.getElementById('cleanupForm');
+    if (cleanupForm) {
+        cleanupForm.addEventListener('submit', function(event) {
+            const selectedVideos = document.querySelectorAll('.video-checkbox:checked');
+            if (selectedVideos.length === 0) {
+                event.preventDefault();
+                alert('Please select at least one video.');
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

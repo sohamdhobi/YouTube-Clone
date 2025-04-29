@@ -1,0 +1,556 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ profile.username }}'s Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background-color: #f8f9fa;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+    }
+    
+    .profile-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    
+    .profile-actions .btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-title {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .horizontal-scroll {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    
+    .horizontal-scroll::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    .scroll-item {
+        flex: 0 0 auto;
+        width: 240px;
+        margin-right: 1rem;
+        position: relative;
+    }
+    
+    .scroll-item:last-child {
+        margin-right: 0;
+    }
+    
+    .content-thumbnail {
+        position: relative;
+        padding-top: 56.25%; /* 16:9 aspect ratio */
+        background-color: #f1f1f1;
+        margin-bottom: 0.5rem;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .content-thumbnail img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .content-badge {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        font-size: 0.75rem;
+    }
+    
+    .scroll-nav {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+    
+    .scroll-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .scroll-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .scroll-btn:hover {
+        background-color: #e9ecef;
+    }
+    
+    .scroll-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .empty-section {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .content-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .content-meta {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    .playlist-count {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    
+    .stats-section {
+        background-color: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        background-color: #f8f9fa;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Profile Header -->
+<div class="profile-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center text-md-start mb-3 mb-md-0">
+                <img src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                     alt="{{ profile.username }}" 
+                     class="rounded-circle profile-avatar">
+            </div>
+            <div class="col-md-9">
+                <h1 class="h2 mb-2">{{ profile.username }}</h1>
+                <div class="mb-3">
+                    <span class="badge bg-secondary me-2">{{ profile.subscriber_count }} subscribers</span>
+                    <span class="badge bg-secondary me-2">{{ total_views }} views</span>
+                    <span class="badge bg-secondary">{{ total_likes }} likes</span>
+                </div>
+                {% if profile.bio %}
+                    <p class="mb-2">{{ profile.bio }}</p>
+                {% endif %}
+                
+                <div class="profile-actions">
+                    {% if request.user == profile %}
+                        <a href="{% url 'users:profile_edit' %}" class="btn btn-primary">
+                            <i class="fas fa-user-edit"></i> Edit Profile
+                        </a>
+                        <a href="{% url 'users:channel' profile.username %}" class="btn btn-success">
+                            <i class="fas fa-video"></i> My Channel
+                        </a>
+                        <a href="{% url 'account_logout' %}" class="btn btn-danger">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    {% else %}
+                        {% if request.user.is_authenticated %}
+                        <form action="{% url 'users:subscribe' profile.username %}" method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn {% if is_subscribed %}btn-secondary{% else %}btn-danger{% endif %}">
+                                <i class="fas {% if is_subscribed %}fa-user-minus{% else %}fa-user-plus{% endif %}"></i>
+                                {% if is_subscribed %}Unsubscribe{% else %}Subscribe{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                        <a href="{% url 'users:channel' profile.username %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-external-link-alt"></i> View Channel
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Quick Stats -->
+    <div class="stats-section">
+        <h2 class="h5 mb-4">My Content</h2>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-video mb-2 text-primary fa-2x"></i>
+                    <div class="stat-value">{{ video_count }}</div>
+                    <div class="stat-label">Videos</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-camera mb-2 text-info fa-2x"></i>
+                    <div class="stat-value">{{ photo_count }}</div>
+                    <div class="stat-label">Photos</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-file-alt mb-2 text-success fa-2x"></i>
+                    <div class="stat-value">{{ blog_count }}</div>
+                    <div class="stat-label">Blogs</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-list mb-2 text-warning fa-2x"></i>
+                    <div class="stat-value">{{ playlists.count }}</div>
+                    <div class="stat-label">Playlists</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Watch History -->
+    <div class="section-title d-flex justify-content-between align-items-center">
+        <h2 class="h4 mb-0">Watch History</h2>
+        <a href="#" class="btn btn-sm btn-outline-secondary">Clear History</a>
+    </div>
+    
+    {% if history_items %}
+        <div class="scroll-nav">
+            <div class="scroll-controls">
+                <button class="scroll-btn" id="historyScrollLeft" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="scroll-btn" id="historyScrollRight">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="horizontal-scroll" id="historyScroll">
+            {% for view in history_items %}
+                <div class="scroll-item">
+                    <div class="content-thumbnail">
+                        <a href="{% url 'videos:watch' view.video.slug %}">
+                            {% if view.video.content_type == 'video' %}
+                                <img src="{{ view.video.thumbnail.url }}" alt="{{ view.video.title }}">
+                                <span class="badge bg-dark content-badge">
+                                    <i class="fas fa-video"></i> Video
+                                </span>
+                            {% elif view.video.content_type == 'photo' %}
+                                <img src="{{ view.video.image.url }}" alt="{{ view.video.title }}">
+                                <span class="badge bg-info content-badge">
+                                    <i class="fas fa-camera"></i> Photo
+                                </span>
+                            {% elif view.video.content_type == 'blog' %}
+                                {% if view.video.image %}
+                                    <img src="{{ view.video.image.url }}" alt="{{ view.video.title }}">
+                                {% else %}
+                                    <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                                        <i class="fas fa-file-alt fa-3x text-muted"></i>
+                            </div>
+                                {% endif %}
+                                <span class="badge bg-success content-badge">
+                                    <i class="fas fa-file-alt"></i> Blog
+                                </span>
+                            {% endif %}
+                        </a>
+                    </div>
+                    <h3 class="content-title">
+                        <a href="{% url 'videos:watch' view.video.slug %}" class="text-decoration-none text-dark">
+                            {{ view.video.title }}
+                        </a>
+                    </h3>
+                    <div class="content-meta">
+                        <div>{{ view.video.creator.username }}</div>
+                        <div>{{ view.created_at|date:"M d, Y" }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-section">
+            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+            <h3 class="h5">No watch history</h3>
+            <p class="text-muted">Videos you watch will appear here</p>
+            <a href="{% url 'videos:browse' %}" class="btn btn-primary">Browse Content</a>
+        </div>
+    {% endif %}
+    
+    <!-- Liked Content -->
+    <div class="section-title">
+        <h2 class="h4 mb-0">Liked Content</h2>
+    </div>
+    
+    {% if liked_content %}
+        <div class="scroll-nav">
+            <div class="scroll-controls">
+                <button class="scroll-btn" id="likedScrollLeft" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="scroll-btn" id="likedScrollRight">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="horizontal-scroll" id="likedScroll">
+            {% for like in liked_content %}
+                <div class="scroll-item">
+                    <div class="content-thumbnail">
+                        {% if like.video and like.video.slug %}
+                        <a href="{% url 'videos:watch' like.video.slug %}">
+                            {% if like.video.content_type == 'video' %}
+                                <img src="{{ like.video.thumbnail.url }}" alt="{{ like.video.title }}">
+                                <span class="badge bg-dark content-badge">
+                                    <i class="fas fa-video"></i> Video
+                                </span>
+                            {% elif like.video.content_type == 'photo' %}
+                                <img src="{{ like.video.image.url }}" alt="{{ like.video.title }}">
+                                <span class="badge bg-info content-badge">
+                                    <i class="fas fa-camera"></i> Photo
+                                </span>
+                            {% elif like.video.content_type == 'blog' %}
+                                {% if like.video.image %}
+                                    <img src="{{ like.video.image.url }}" alt="{{ like.video.title }}">
+                                {% else %}
+                                    <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                                        <i class="fas fa-file-alt fa-3x text-muted"></i>
+                            </div>
+                                {% endif %}
+                                <span class="badge bg-success content-badge">
+                                    <i class="fas fa-file-alt"></i> Blog
+                                </span>
+                {% endif %}
+                        </a>
+                        {% else %}
+                        <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                            <i class="fas fa-exclamation-triangle fa-3x text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <h3 class="content-title">
+                        {% if like.video and like.video.slug %}
+                        <a href="{% url 'videos:watch' like.video.slug %}" class="text-decoration-none text-dark">
+                            {{ like.video.title }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">Content Unavailable</span>
+                        {% endif %}
+                    </h3>
+                    <div class="content-meta">
+                        <div>{{ like.video.creator.username|default:"" }}</div>
+                        <div>{{ like.created_at|date:"M d, Y" }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-section">
+            <i class="fas fa-thumbs-up fa-3x text-muted mb-3"></i>
+            <h3 class="h5">No liked content</h3>
+            <p class="text-muted">Content you like will appear here</p>
+            <a href="{% url 'videos:browse' %}" class="btn btn-primary">Browse Content</a>
+        </div>
+                {% endif %}
+    
+    <!-- Playlists -->
+    <div class="section-title d-flex justify-content-between align-items-center">
+        <h2 class="h4 mb-0">My Playlists</h2>
+        <a href="{% url 'videos:playlist_create' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus"></i> Create Playlist
+        </a>
+    </div>
+    
+    {% if playlists %}
+        <div class="scroll-nav">
+            <div class="scroll-controls">
+                <button class="scroll-btn" id="playlistsScrollLeft" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="scroll-btn" id="playlistsScrollRight">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="horizontal-scroll" id="playlistsScroll">
+            {% for playlist in playlists %}
+                <div class="scroll-item">
+                    <div class="content-thumbnail">
+                        <a href="{% url 'videos:playlist_detail' playlist.id %}">
+                            {% if playlist.playlist_items.exists %}
+                                {% for item in playlist.playlist_items.all %}
+                                    {% if forloop.first %}
+                                        {% if item.video.content_type == 'video' %}
+                                            <img src="{{ item.video.thumbnail.url }}" alt="{{ playlist.title }}">
+                                        {% elif item.video.content_type == 'photo' %}
+                                            <img src="{{ item.video.image.url }}" alt="{{ playlist.title }}">
+                                        {% else %}
+                                            <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                                                <i class="fas fa-list fa-3x text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                                    <i class="fas fa-list fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <span class="badge bg-primary content-badge">
+                                <i class="fas fa-list"></i> Playlist
+                            </span>
+                            
+                            <span class="playlist-count">
+                                <i class="fas fa-play"></i> {{ playlist.playlist_items.count }} items
+                            </span>
+                            
+                            {% if not playlist.is_public %}
+                                <span class="badge bg-secondary position-absolute top-0 end-0 m-2">
+                                    <i class="fas fa-lock"></i> Private
+                                </span>
+                            {% endif %}
+                        </a>
+                    </div>
+                    <h3 class="content-title">
+                        <a href="{% url 'videos:playlist_detail' playlist.id %}" class="text-decoration-none text-dark">
+                            {{ playlist.title }}
+                        </a>
+                    </h3>
+                    <div class="content-meta">
+                        <div>Created {{ playlist.created_at|date:"M d, Y" }}</div>
+                        <div class="d-flex mt-1 gap-1">
+                            <a href="{% url 'videos:playlist_player' playlist.id %}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                                <i class="fas fa-play"></i> Play
+                            </a>
+                            <a href="{% url 'videos:playlist_edit' playlist.id %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-section">
+            <i class="fas fa-list fa-3x text-muted mb-3"></i>
+            <h3 class="h5">No playlists yet</h3>
+            <p class="text-muted">Create playlists to organize your favorite content</p>
+            <a href="{% url 'videos:playlist_create' %}" class="btn btn-primary">Create Playlist</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Helper function to set up horizontal scrolling
+    function setupHorizontalScroll(scrollId, leftBtnId, rightBtnId) {
+        const scrollElement = document.getElementById(scrollId);
+        const leftBtn = document.getElementById(leftBtnId);
+        const rightBtn = document.getElementById(rightBtnId);
+        
+        if (!scrollElement || !leftBtn || !rightBtn) return;
+        
+        const scrollAmount = 500; // Adjust based on your design
+        
+        // Initial check
+        checkScrollButtons();
+        
+        // Check scroll position and update button states
+        function checkScrollButtons() {
+            leftBtn.disabled = scrollElement.scrollLeft <= 0;
+            rightBtn.disabled = scrollElement.scrollLeft + scrollElement.clientWidth >= scrollElement.scrollWidth;
+        }
+        
+        // Scroll left
+        leftBtn.addEventListener('click', function() {
+            scrollElement.scrollBy({
+                left: -scrollAmount,
+                behavior: 'smooth'
+            });
+            setTimeout(checkScrollButtons, 400);
+        });
+        
+        // Scroll right
+        rightBtn.addEventListener('click', function() {
+            scrollElement.scrollBy({
+                left: scrollAmount,
+                behavior: 'smooth'
+            });
+            setTimeout(checkScrollButtons, 400);
+        });
+        
+        // Update buttons when scrolling manually
+        scrollElement.addEventListener('scroll', checkScrollButtons);
+    }
+    
+    // Set up each horizontal scroll section
+    setupHorizontalScroll('historyScroll', 'historyScrollLeft', 'historyScrollRight');
+    setupHorizontalScroll('likedScroll', 'likedScrollLeft', 'likedScrollRight');
+    setupHorizontalScroll('playlistsScroll', 'playlistsScrollLeft', 'playlistsScrollRight');
+});
+</script>
+{% endblock %} 

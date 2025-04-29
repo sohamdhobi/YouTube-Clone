@@ -1,0 +1,560 @@
+{% extends 'custom_admin/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumb and Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:user_list' %}">Users</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ user.username }}</li>
+            </ol>
+        </nav>
+        <div>
+            <div class="btn-group">
+                <a href="#emailUserModal" class="btn btn-outline-secondary" data-bs-toggle="modal">
+                    <i class="fas fa-envelope me-1"></i>Email
+                </a>
+                <a href="#warningModal" class="btn btn-outline-warning" data-bs-toggle="modal">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Warning
+                </a>
+                <a href="{% url 'users:admin_password_reset' user.id %}" class="btn btn-outline-primary" onclick="return confirm('Send a password reset link to {{ user.email }}?');">
+                    <i class="fas fa-key me-1"></i>Reset Password
+                </a>
+                <form method="post" class="d-inline" action="{% url 'custom_admin:user_detail' user.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="toggle_active">
+                    {% if user.is_active %}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-user-slash me-1"></i>Deactivate
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-outline-success">
+                        <i class="fas fa-user-check me-1"></i>Activate
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-4">
+            <!-- User Profile -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body text-center">
+                    <img src="{% if user.avatar %}{{ user.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                         alt="{{ user.username }}" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    <h4>{{ user.first_name|default:'' }} {{ user.last_name|default:'' }}</h4>
+                    <p class="text-secondary mb-1">@{{ user.username }}</p>
+                    <p class="text-muted font-size-sm">{{ user.email }}</p>
+                    
+                    {% if user.is_active %}
+                    <span class="badge bg-success mb-3">Active Account</span>
+                    {% else %}
+                    <span class="badge bg-secondary mb-3">Inactive Account</span>
+                    {% endif %}
+                    
+                    {% if user.is_admin %}
+                    <span class="badge bg-danger mb-3">Admin User</span>
+                    {% endif %}
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Member Since
+                        <span>{{ user.date_joined|date:"M d, Y" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Last Login
+                        <span>{{ user.last_login|default_if_none:"Never"|date:"M d, Y H:i" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Videos
+                        <span class="badge bg-primary rounded-pill">{{ video_count }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Subscribers
+                        <span class="badge bg-primary rounded-pill">{{ user.subscribers.count|default:"0" }}</span>
+                    </li>
+                </ul>
+                <div class="card-body">
+                    <a href="#" class="btn btn-outline-primary w-100">View Public Profile</a>
+                </div>
+            </div>
+            
+            <!-- Admin Notes -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Admin Notes</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'custom_admin:user_detail' user.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_notes">
+                        <div class="mb-3">
+                            <textarea class="form-control" name="admin_notes" rows="4" placeholder="Add notes about this user..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Notes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="col-lg-8">
+            <!-- Admin Actions (Only visible to Super Admins) -->
+            {% if request.user.is_super_admin %}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if not user.is_admin %}
+                        <div class="col-md-4">
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary w-100 dropdown-toggle" type="button" id="promoteDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-user-shield me-1"></i>Promote to Admin
+                                </button>
+                                <ul class="dropdown-menu w-100" aria-labelledby="promoteDropdown">
+                                    {% if request.user.admin_role.level == 1 %}
+                                    <li>
+                                        <form method="post" action="{% url 'custom_admin:user_detail' user.id %}" class="px-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="promote_admin">
+                                            <input type="hidden" name="admin_role" value="1">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="fas fa-crown me-1"></i>Super Admin
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    <li>
+                                        <form method="post" action="{% url 'custom_admin:user_detail' user.id %}" class="px-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="promote_admin">
+                                            <input type="hidden" name="admin_role" value="2">
+                                            <button type="submit" class="dropdown-item text-primary">
+                                                <i class="fas fa-user-tie me-1"></i>Moderator
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'custom_admin:user_detail' user.id %}" class="px-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="promote_admin">
+                                            <input type="hidden" name="admin_role" value="3">
+                                            <button type="submit" class="dropdown-item text-success">
+                                                <i class="fas fa-headset me-1"></i>Support Staff
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-md-4">
+                            <form method="post" action="{% url 'custom_admin:user_detail' user.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="remove_admin">
+                                <button type="submit" class="btn btn-outline-warning w-100">
+                                    <i class="fas fa-user-minus me-1"></i>Remove Admin Rights
+                                </button>
+                            </form>
+                        </div>
+                        {% if user.admin_role.level != 1 %}
+                        <div class="col-md-4">
+                            <div class="dropdown">
+                                <button class="btn btn-outline-info w-100 dropdown-toggle" type="button" id="changeRoleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-exchange-alt me-1"></i>Change Role
+                                </button>
+                                <ul class="dropdown-menu w-100" aria-labelledby="changeRoleDropdown">
+                                    {% if request.user.admin_role.level == 1 %}
+                                    <li>
+                                        <form method="post" action="{% url 'custom_admin:user_detail' user.id %}" class="px-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="change_role">
+                                            <input type="hidden" name="admin_role" value="1">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="fas fa-crown me-1"></i>Super Admin
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    {% if user.admin_role.level != 2 %}
+                                    <li>
+                                        <form method="post" action="{% url 'custom_admin:user_detail' user.id %}" class="px-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="change_role">
+                                            <input type="hidden" name="admin_role" value="2">
+                                            <button type="submit" class="dropdown-item text-primary">
+                                                <i class="fas fa-user-tie me-1"></i>Moderator
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    {% if user.admin_role.level != 3 %}
+                                    <li>
+                                        <form method="post" action="{% url 'custom_admin:user_detail' user.id %}" class="px-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="change_role">
+                                            <input type="hidden" name="admin_role" value="3">
+                                            <button type="submit" class="dropdown-item text-success">
+                                                <i class="fas fa-headset me-1"></i>Support Staff
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
+                                <i class="fas fa-user-times me-1"></i>Delete User
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- User Activity -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">User Activity</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" id="userActivityTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="videos-tab" data-bs-toggle="tab" data-bs-target="#videos" type="button" role="tab" aria-controls="videos" aria-selected="true">Videos</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="comments-tab" data-bs-toggle="tab" data-bs-target="#comments" type="button" role="tab" aria-controls="comments" aria-selected="false">Comments</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="login-history-tab" data-bs-toggle="tab" data-bs-target="#login-history" type="button" role="tab" aria-controls="login-history" aria-selected="false">Login History</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="warnings-tab" data-bs-toggle="tab" data-bs-target="#warnings" type="button" role="tab" aria-controls="warnings" aria-selected="false">Warnings</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content pt-3" id="userActivityTabContent">
+                        <!-- Videos Tab -->
+                        <div class="tab-pane fade show active" id="videos" role="tabpanel" aria-labelledby="videos-tab">
+                            {% for video in user.video_set.all|slice:":5" %}
+                            <div class="card mb-3">
+                                <div class="row g-0">
+                                    <div class="col-md-4">
+                                        <img src="{{ video.thumbnail.url|default:'https://via.placeholder.com/640x360?text=No+Thumbnail' }}" 
+                                             alt="{{ video.title }}" class="img-fluid rounded-start" style="width: 100%; height: 120px; object-fit: cover;">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ video.title|truncatechars:40 }}</h5>
+                                            <p class="card-text"><small class="text-muted">{{ video.views|intcomma }} views • {{ video.created_at|date:"M d, Y" }}</small></p>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="#" class="btn btn-outline-primary">View</a>
+                                                <a href="{% url 'custom_admin:content_detail' video.id %}" class="btn btn-outline-secondary">Edit</a>
+                                                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteVideoModal" data-video-id="{{ video.id }}" data-video-title="{{ video.title }}">Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>This user hasn't uploaded any videos yet.
+                            </div>
+                            {% endfor %}
+                            
+                            {% if user.video_set.count > 5 %}
+                            <div class="text-center">
+                                <a href="#" class="btn btn-outline-primary btn-sm">View All Videos ({{ user.video_set.count }})</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Comments Tab -->
+                        <div class="tab-pane fade" id="comments" role="tabpanel" aria-labelledby="comments-tab">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>Recent comment history will be shown here.
+                            </div>
+                        </div>
+                        
+                        <!-- Login History Tab -->
+                        <div class="tab-pane fade" id="login-history" role="tabpanel" aria-labelledby="login-history-tab">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date & Time</th>
+                                            <th>IP Address</th>
+                                            <th>Device</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>{{ user.last_login|default_if_none:"Never"|date:"M d, Y H:i" }}</td>
+                                            <td>127.0.0.1</td>
+                                            <td>Chrome / Windows</td>
+                                            <td><span class="badge bg-success">Success</span></td>
+                                        </tr>
+                                        <!-- Add more dummy login history if needed -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Warnings Tab -->
+                        <div class="tab-pane fade" id="warnings" role="tabpanel" aria-labelledby="warnings-tab">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>No warnings have been issued to this user.
+                            </div>
+                            <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#warningModal">Issue Warning</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Account Settings -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Account Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'custom_admin:user_detail' user.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_profile">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name|default:'' }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="account_status" class="form-label">Account Status</label>
+                                <select class="form-select" id="account_status" name="account_status">
+                                    <option value="active" {% if user.is_active %}selected{% endif %}>Active</option>
+                                    <option value="inactive" {% if not user.is_active %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="admin_status" class="form-label">Admin Status</label>
+                                <select class="form-select" id="admin_status" name="admin_status">
+                                    <option value="regular" {% if not user.is_admin %}selected{% endif %}>Regular User</option>
+                                    <option value="admin" {% if user.is_admin %}selected{% endif %}>Admin User</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3" id="admin_role_container" style="{% if not user.is_admin %}display: none;{% endif %}">
+                            <div class="col-md-6">
+                                <label for="admin_role" class="form-label">Admin Role</label>
+                                <select class="form-select" id="admin_role" name="admin_role">
+                                    <option value="1" {% if user.admin_role.level == 1 %}selected{% endif %}>Super Admin</option>
+                                    <option value="2" {% if user.admin_role.level == 2 %}selected{% endif %}>Moderator</option>
+                                    <option value="3" {% if user.admin_role.level == 3 %}selected{% endif %}>Support Staff</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="reset_password" name="reset_password">
+                                <label class="form-check-label" for="reset_password">
+                                    Send password reset email
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warning Modal -->
+<div class="modal fade" id="warningModal" tabindex="-1" aria-labelledby="warningModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="warningModalLabel">Issue Warning to {{ user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'custom_admin:user_detail' user.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="send_warning">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="warning_message" class="form-label">Warning Message</label>
+                        <textarea class="form-control" id="warning_message" name="warning_message" rows="4" required></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="warning_email" name="warning_email" checked>
+                        <label class="form-check-label" for="warning_email">
+                            Send warning via email
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Send Warning</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Email User Modal -->
+<div class="modal fade" id="emailUserModal" tabindex="-1" aria-labelledby="emailUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailUserModalLabel">Email {{ user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="email_subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="email_subject" name="email_subject" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email_message" class="form-label">Message</label>
+                        <textarea class="form-control" id="email_message" name="email_message" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Video Modal -->
+<div class="modal fade" id="deleteVideoModal" tabindex="-1" aria-labelledby="deleteVideoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteVideoModalLabel">Delete Video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the video: <strong id="videoTitle"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" id="deleteVideoForm">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete Video</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">Delete User Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Warning: This action cannot be undone!
+                </div>
+                <p>Are you sure you want to permanently delete the user <strong>{{ user.username }}</strong>?</p>
+                <p>This will remove:</p>
+                <ul>
+                    <li>The user's account and profile information</li>
+                    <li>All videos and comments created by this user</li>
+                    <li>Subscription relationships</li>
+                    <li>All other user data</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'custom_admin:user_detail' user.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_user">
+                    <button type="submit" class="btn btn-danger">Delete User Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up delete video modal
+        const deleteVideoModal = document.getElementById('deleteVideoModal');
+        if (deleteVideoModal) {
+            deleteVideoModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const videoId = button.getAttribute('data-video-id');
+                const videoTitle = button.getAttribute('data-video-title');
+                
+                document.getElementById('videoTitle').textContent = videoTitle;
+                document.getElementById('deleteVideoForm').action = '/admin/content/' + videoId + '/delete/';
+            });
+        }
+        
+        // Initialize admin role field visibility on page load
+        toggleAdminRoleField();
+        
+        // Add event listener for admin status change
+        const adminStatus = document.getElementById('admin_status');
+        if (adminStatus) {
+            adminStatus.addEventListener('change', toggleAdminRoleField);
+        }
+    });
+    
+    function toggleAdminRoleField() {
+        const adminStatus = document.getElementById('admin_status');
+        const adminRoleContainer = document.getElementById('admin_role_container');
+        
+        if (adminStatus && adminRoleContainer) {
+            if (adminStatus.value === 'admin') {
+                adminRoleContainer.style.display = 'block';
+                
+                // Make sure a role is selected
+                const adminRole = document.getElementById('admin_role');
+                if (adminRole && !adminRole.value) {
+                    adminRole.value = '3'; // Default to Support Staff
+                }
+            } else {
+                adminRoleContainer.style.display = 'none';
+            }
+        }
+    }
+</script>
+{% endblock %} 

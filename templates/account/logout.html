@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign Out" %} - YouTube Clone{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h1 class="h3 mb-4 text-center">{% trans "Sign Out" %}</h1>
+                    
+                    <p class="text-center mb-4">{% trans 'Are you sure you want to sign out?' %}</p>
+
+                    <form method="post" action="{% url 'account_logout' %}">
+                        {% csrf_token %}
+                        {% if redirect_field_value %}
+                        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}"/>
+                        {% endif %}
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-sign-out-alt me-2"></i>{% trans 'Sign Out' %}
+                            </button>
+                            <a href="{% url 'core:home' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>{% trans 'Cancel' %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

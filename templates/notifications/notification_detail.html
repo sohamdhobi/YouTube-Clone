@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Notification Details{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'notifications:list' %}">Notifications</a></li>
+                    <li class="breadcrumb-item active">Notification Details</li>
+                </ol>
+            </nav>
+            
+            <!-- Notification Header -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="h4 mb-0">{{ notification.verb }}</h3>
+                            <p class="text-muted mb-0">{{ notification.timestamp|naturaltime }}</p>
+                        </div>
+                        <div class="notification-icon">
+                            {% if notification.notification_type == 'moderation' %}
+                                <div class="bg-warning text-white rounded-circle p-3">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                            {% elif notification.notification_type == 'comment' %}
+                                <div class="bg-info text-white rounded-circle p-3">
+                                    <i class="fas fa-comment"></i>
+                                </div>
+                            {% elif notification.notification_type == 'like' %}
+                                <div class="bg-danger text-white rounded-circle p-3">
+                                    <i class="fas fa-heart"></i>
+                                </div>
+                            {% elif notification.notification_type == 'subscription' %}
+                                <div class="bg-success text-white rounded-circle p-3">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                            {% elif notification.notification_type == 'warning' %}
+                                <div class="bg-danger text-white rounded-circle p-3">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                            {% else %}
+                                <div class="bg-secondary text-white rounded-circle p-3">
+                                    <i class="fas fa-bell"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert {% if notification.notification_type == 'warning' %}alert-danger{% elif notification.notification_type == 'moderation' %}alert-warning{% else %}alert-info{% endif %}">
+                        {{ notification.description }}
+                    </div>
+                </div>
+            </div>
+            
+            {% if content_object %}
+            <!-- Content Details -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h4 class="h5 mb-0">Content Details</h4>
+                    <span class="badge {% if content_object.content_type == 'video' %}bg-danger{% elif content_object.content_type == 'photo' %}bg-info{% elif content_object.content_type == 'blog' %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
+                        {{ content_object.get_content_type_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <!-- Content Preview -->
+                    <div class="row mb-4">
+                        <div class="col-sm-4">
+                            {% if content_object.thumbnail %}
+                            <img src="{{ content_object.thumbnail.url }}" alt="{{ content_object.title }}" class="img-fluid rounded">
+                            {% elif content_object.image %}
+                            <img src="{{ content_object.image.url }}" alt="{{ content_object.title }}" class="img-fluid rounded">
+                            {% else %}
+                            <div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded" style="height: 150px;">
+                                <i class="fas fa-file-alt fa-3x"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-sm-8">
+                            <h5>{{ content_object.title }}</h5>
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                {% if moderation_status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending Review</span>
+                                {% elif moderation_status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                                {% elif moderation_status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                                
+                                {% if is_published %}
+                                <span class="badge bg-primary">Published</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Not Published</span>
+                                {% endif %}
+                                
+                                <span class="badge bg-info text-white">
+                                    <i class="fas fa-eye me-1"></i> {{ content_object.views|default:"0" }} Views
+                                </span>
+                            </div>
+                            <p>{{ content_object.description|truncatewords:30 }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if notification.notification_type == 'moderation' or notification.notification_type == 'warning' %}
+                    <!-- Moderation Details -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Moderation Details</h5>
+                            <span class="badge {% if moderation_status == 'pending' %}bg-warning text-dark{% elif moderation_status == 'approved' %}bg-success{% elif moderation_status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %} rounded-pill">
+                                {{ moderation_status|title }}
+                            </span>
+                        </div>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% if moderated_by %}
+                                    <li class="list-group-item bg-transparent px-0">
+                                        <strong>Reviewed By:</strong> {{ moderated_by.username }}
+                                    </li>
+                                    {% endif %}
+                                    {% if moderated_at %}
+                                    <li class="list-group-item bg-transparent px-0">
+                                        <strong>Review Date:</strong> {{ moderated_at|date:"F j, Y, g:i a" }}
+                                    </li>
+                                    {% endif %}
+                                    {% if moderation_notes %}
+                                    <li class="list-group-item bg-transparent px-0">
+                                        <strong>Moderation Notes:</strong>
+                                        <div class="mt-2 bg-white p-3 rounded">
+                                            {{ moderation_notes|linebreaks }}
+                                        </div>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Defensive Argument / Appeal Section -->
+                    <div class="border-top pt-4 mb-4">
+                        <h5 class="mb-3">Appeal or Request Review</h5>
+                        <p class="text-muted">If you believe this content should be reviewed again or published, you can submit an appeal with your explanation:</p>
+                        
+                        <form method="post" id="appealForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="request_review">
+                            
+                            <div class="mb-3">
+                                <label for="reviewMessage" class="form-label">Your Message to Moderators</label>
+                                <textarea class="form-control" id="reviewMessage" name="review_message" rows="4" placeholder="Explain why your content should be reconsidered, provide context about your content, or describe changes you've made..."></textarea>
+                                <div class="form-text">Be specific about why you believe this content complies with our community guidelines.</div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane me-2"></i>Submit Appeal
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="border-top pt-4">
+                        <h5 class="mb-3">Available Actions</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            <!-- View Content -->
+                            <a href="{% if content_object.slug %}/videos/{{ content_object.slug }}/{% else %}/videos/{{ content_object.id }}/{% endif %}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-2"></i>View Content
+                            </a>
+                            
+                            <!-- Edit Content -->
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="edit_content">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit me-2"></i>Edit Content
+                                </button>
+                            </form>
+                            
+                            {% if moderation_status == 'approved' and not is_published %}
+                            <!-- Publish Content (for approved but unpublished content) -->
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="publish_content">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check-circle me-2"></i>Publish Content
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            <!-- Delete Content -->
+                            <form method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this content? This action cannot be undone.');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_content">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fas fa-trash-alt me-2"></i>Delete Content
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Back Button -->
+            <div class="text-center">
+                <a href="{% url 'notifications:list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Notifications
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Character counter for appeal message
+    const reviewMessage = document.getElementById('reviewMessage');
+    if (reviewMessage) {
+        reviewMessage.addEventListener('input', function() {
+            const charCount = this.value.length;
+            const formText = this.nextElementSibling;
+            
+            if (charCount > 0) {
+                formText.innerHTML = `<span class="${charCount > 50 ? 'text-success' : 'text-warning'}">${charCount} characters</span> - Be specific about why you believe this content complies with our community guidelines.`;
+            } else {
+                formText.innerHTML = 'Be specific about why you believe this content complies with our community guidelines.';
+            }
+        });
+    }
+    
+    // Form validation
+    const appealForm = document.getElementById('appealForm');
+    if (appealForm) {
+        appealForm.addEventListener('submit', function(e) {
+            const reviewMessage = document.getElementById('reviewMessage');
+            if (reviewMessage.value.length < 20) {
+                e.preventDefault();
+                alert('Please provide a more detailed explanation (at least 20 characters).');
+                reviewMessage.focus();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 

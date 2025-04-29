@@ -1,0 +1,94 @@
+{% load static %}
+<div class="comment mb-4" id="comment-{{ comment.id }}">
+    <div class="d-flex align-items-center mb-2">
+        <img src="{% if comment.user.avatar %}{{ comment.user.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+             alt="{{ comment.user.username }}" 
+             class="rounded-circle me-2"
+             width="32" height="32">
+        <div>
+            <h6 class="mb-0">{{ comment.user.username }}</h6>
+            <small class="text-muted">{{ comment.created_at|date:"M d, Y" }}</small>
+        </div>
+    </div>
+    <p class="mb-2" id="comment-text-{{ comment.id }}">{{ comment.content }}</p>
+    <div id="edit-form-{{ comment.id }}" class="mb-2" style="display: none;">
+        <div class="form-group">
+            <textarea class="form-control" id="edit-textarea-{{ comment.id }}" rows="2">{{ comment.content }}</textarea>
+        </div>
+        <div class="mt-2">
+            <button type="button" class="btn btn-sm btn-primary" onclick="saveCommentEdit({{ comment.id }})">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCommentEdit({{ comment.id }})">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    </div>
+    <div class="d-flex align-items-center">
+        <button class="btn {% if comment.is_liked_by_user %}btn-primary{% else %}btn-tertiary{% endif %}"
+                id="comment-like-{{ comment.id }}" onclick="likeComment({{ comment.id }})">
+            <i class="fas fa-thumbs-up"></i>
+            <span class="like-count ms-1" id="comment-like-count-{{ comment.id }}">{{ comment.like_count }}</span>
+        </button>
+
+        {% if user.is_authenticated %}
+        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="showReplyForm({{ comment.id }})">
+            <i class="fas fa-reply"></i> Reply
+        </button>
+        {% endif %}
+        
+        {% if user == comment.user %}
+        <div class="dropdown ms-2">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                    id="dropdownMenuButton-{{ comment.id }}" data-bs-toggle="dropdown" 
+                    aria-expanded="false">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton-{{ comment.id }}">
+                <li>
+                    <button class="dropdown-item" onclick="showCommentEdit({{ comment.id }})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item text-danger" onclick="confirmDeleteComment({{ comment.id }})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </li>
+            </ul>
+        </div>
+        {% elif user.is_authenticated %}
+        <div class="dropdown ms-2">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                    id="dropdownMenuButton-{{ comment.id }}" data-bs-toggle="dropdown" 
+                    aria-expanded="false">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton-{{ comment.id }}">
+                <li>
+                    <a class="dropdown-item" href="{% url 'core:report_content' 'comment' comment.id %}">
+                        <i class="fas fa-flag text-danger me-2"></i> Report comment
+                    </a>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    <div id="reply-form-{{ comment.id }}" class="mt-2" style="display: none;">
+        <form method="post" action="{% url 'videos:comment' current_video.slug|default:video.slug %}" id="reply-form-{{ comment.id }}-form">
+            {% csrf_token %}
+            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+            <div class="form-group">
+                <textarea name="text" class="form-control" rows="2" required></textarea>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" onclick="submitReply({{ comment.id }})">
+                <i class="fas fa-paper-plane"></i> Reply
+            </button>
+        </form>
+    </div>
+    <div class="comment-replies">
+        {% for reply in comment.replies.all %}
+            {% include "videos/comment.html" with comment=reply %}
+        {% endfor %}
+    </div>
+</div> 

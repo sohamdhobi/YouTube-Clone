@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report {{ content_type|title }} - {{ content_title }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0">Report {{ content_type|title }}</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">You are reporting:</h5>
+                        <p class="mb-0">{{ content_title }}</p>
+                    </div>
+                    
+                    <p class="text-muted mb-4">
+                        Please select a reason for reporting this content. Reports are reviewed by our moderation team and appropriate action will be taken based on our community guidelines.
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label">Reason for reporting</label>
+                            {{ form.reason.errors }}
+                            <select name="{{ form.reason.name }}" id="{{ form.reason.id_for_label }}" class="form-select">
+                                {% for value, text in form.reason.field.choices %}
+                                <option value="{{ value }}">{{ text }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.details.id_for_label }}" class="form-label">Additional details (optional)</label>
+                            {{ form.details.errors }}
+                            <textarea name="{{ form.details.name }}" id="{{ form.details.id_for_label }}" class="form-control" rows="4" placeholder="Please provide any additional details that would help us understand this report better."></textarea>
+                            <div class="form-text text-muted">
+                                Details are required if you select "Other" as the reason.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-danger">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript to show/hide the details field based on the selected reason -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const reasonSelect = document.getElementById('{{ form.reason.id_for_label }}');
+    const detailsGroup = document.getElementById('{{ form.details.id_for_label }}').closest('.mb-3');
+    const detailsField = document.getElementById('{{ form.details.id_for_label }}');
+    
+    function updateDetailsVisibility() {
+        if (reasonSelect.value === 'other') {
+            detailsGroup.querySelector('.form-text').classList.add('text-danger');
+            detailsField.setAttribute('required', 'required');
+        } else {
+            detailsGroup.querySelector('.form-text').classList.remove('text-danger');
+            detailsField.removeAttribute('required');
+        }
+    }
+    
+    reasonSelect.addEventListener('change', updateDetailsVisibility);
+    
+    // Initialize on page load
+    updateDetailsVisibility();
+});
+</script>
+{% endblock %} 

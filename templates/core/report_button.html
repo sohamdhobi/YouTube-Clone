@@ -1,0 +1,17 @@
+{% if user.is_authenticated %}
+<div class="dropdown d-inline-block ml-2">
+    <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" id="report{{ content_type }}{{ object_id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <i class="fas fa-flag"></i> Report
+    </button>
+    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="report{{ content_type }}{{ object_id }}">
+        <h6 class="dropdown-header">Report {{ content_type }}</h6>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item report-content-link" href="{{ report_url }}">
+            <i class="fas fa-exclamation-triangle text-danger mr-2"></i> Report inappropriate content
+        </a>
+        <div class="dropdown-item-text small text-muted p-2">
+            Please report content that violates our guidelines. We take reports seriously and will review them promptly.
+        </div>
+    </div>
+</div>
+{% endif %} 

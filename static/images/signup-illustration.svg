@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background Circle -->
+    <circle cx="200" cy="150" r="120" fill="#E3F2FD" opacity="0.5"/>
+    
+    <!-- User Icon -->
+    <circle cx="200" cy="120" r="40" fill="#2196F3"/>
+    <path d="M200 180C233.137 180 260 206.863 260 240V260H140V240C140 206.863 166.863 180 200 180Z" fill="#2196F3"/>
+    
+    <!-- Email Icon -->
+    <rect x="120" y="100" width="160" height="120" rx="8" fill="#1976D2"/>
+    <path d="M140 140L200 170L260 140" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- Decorative Elements -->
+    <circle cx="100" cy="80" r="8" fill="#64B5F6"/>
+    <circle cx="300" cy="220" r="12" fill="#90CAF9"/>
+    <circle cx="80" cy="240" r="6" fill="#42A5F5"/>
+</svg> 

@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}{{ post.title }} - YouTube Clone{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Post Content -->
+            <div class="card shadow mb-4">
+                <img src="{{ post.image.url }}" class="card-img-top" alt="{{ post.title }}">
+                <div class="card-body">
+                    <h1 class="card-title h3">{{ post.title }}</h1>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if post.creator.avatar %}{{ post.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                 alt="{{ post.creator.username }}" 
+                                 class="rounded-circle me-2"
+                                 width="40" height="40">
+                            <div>
+                                <h6 class="mb-0">{{ post.creator.username }}</h6>
+                                <small class="text-muted">{{ post.created_at|date:"M d, Y" }}</small>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            {% if user.is_authenticated %}
+                            <button class="btn btn-outline-primary {% if is_liked %}active{% endif %}" onclick="likePost()">
+                                <i class="fas fa-thumbs-up"></i>
+                                <span id="like-count">{{ post.like_count }}</span>
+                            </button>
+                            
+                            {% if user != post.creator %}
+                            <div class="dropdown ms-2">
+                                <button class="btn btn-outline-danger dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-flag"></i> Report
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown">
+                                    <li><h6 class="dropdown-header">Report Post</h6></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'core:report_content' 'post' post.id %}">
+                                            <i class="fas fa-exclamation-triangle text-danger me-2"></i> Report inappropriate content
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <div class="dropdown-item-text small text-muted p-2">
+                                            Please report content that violates our guidelines. We take reports seriously and will review them promptly.
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-text">
+                        {{ post.content|linebreaks }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments -->
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-comments"></i> Comments ({{ post.comment_count }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if user.is_authenticated %}
+                    <form method="post" class="mb-4">
+                        {% csrf_token %}
+                        {{ comment_form|crispy }}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Comment
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Please <a href="{% url 'account_login' %}">login</a> to leave a comment.
+                    </div>
+                    {% endif %}
+
+                    <div class="comments-section">
+                        {% for comment in comments %}
+                        <div class="comment mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <img src="{% if comment.user.avatar %}{{ comment.user.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                     alt="{{ comment.user.username }}" 
+                                     class="rounded-circle me-2"
+                                     width="32" height="32">
+                                <div>
+                                    <h6 class="mb-0">{{ comment.user.username }}</h6>
+                                    <small class="text-muted">{{ comment.created_at|date:"M d, Y" }}</small>
+                                </div>
+                            </div>
+                            <p class="mb-2">{{ comment.content }}</p>
+                            <div class="d-flex align-items-center">
+                                {% if user.is_authenticated %}
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="likeComment({{ comment.id }})">
+                                    <i class="fas fa-thumbs-up"></i>
+                                    <span id="comment-like-count-{{ comment.id }}">{{ comment.like_count }}</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="showReplyForm({{ comment.id }})">
+                                    <i class="fas fa-reply"></i> Reply
+                                </button>
+                                {% endif %}
+                            </div>
+                            <div id="reply-form-{{ comment.id }}" class="mt-2" style="display: none;">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                    {{ comment_form|crispy }}
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-paper-plane"></i> Reply
+                                    </button>
+                                </form>
+                            </div>
+                            <!-- Replies -->
+                            <div class="replies ms-4 mt-2">
+                                {% for reply in comment.replies.all %}
+                                <div class="comment mb-2">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <img src="{% if reply.user.avatar %}{{ reply.user.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                             alt="{{ reply.user.username }}" 
+                                             class="rounded-circle me-2"
+                                             width="24" height="24">
+                                        <div>
+                                            <h6 class="mb-0">{{ reply.user.username }}</h6>
+                                            <small class="text-muted">{{ reply.created_at|date:"M d, Y" }}</small>
+                                        </div>
+                                    </div>
+                                    <p class="mb-2">{{ reply.content }}</p>
+                                    {% if user.is_authenticated %}
+                                    <button class="btn btn-sm btn-outline-primary" onclick="likeComment({{ reply.id }})">
+                                        <i class="fas fa-thumbs-up"></i>
+                                        <span id="comment-like-count-{{ reply.id }}">{{ reply.like_count }}</span>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted">No comments yet. Be the first to comment!</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Creator Info -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">About the Creator</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{% if post.creator.avatar %}{{ post.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                             alt="{{ post.creator.username }}" 
+                             class="rounded-circle me-3"
+                             width="64" height="64">
+                        <div>
+                            <h5 class="mb-0">{{ post.creator.username }}</h5>
+                            <small class="text-muted">{{ post.creator.subscriber_count }} subscribers</small>
+                        </div>
+                    </div>
+                    {% if user.is_authenticated and user != post.creator %}
+                    <button class="btn btn-danger w-100" onclick="subscribe()">
+                        {% if is_subscribed %}
+                        <i class="fas fa-user-minus"></i> Unsubscribe
+                        {% else %}
+                        <i class="fas fa-user-plus"></i> Subscribe
+                        {% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Related Posts -->
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">More from {{ post.creator.username }}</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for related_post in post.creator.posts.all|slice:":5" %}
+                    {% if related_post != post %}
+                    <a href="{% url 'core:post_detail' related_post.slug %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <img src="{{ related_post.image.url }}" alt="{{ related_post.title }}" 
+                                     class="rounded" width="100" height="100" style="object-fit: cover;">
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ related_post.title }}</h6>
+                                <small class="text-muted">
+                                    {{ related_post.like_count }} likes<br>
+                                    {{ related_post.created_at|date:"M d, Y" }}
+                                </small>
+                            </div>
+                        </div>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function likePost() {
+    fetch(`/core/post/{{ post.slug }}/like/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const likeButton = document.querySelector('.btn-outline-primary');
+            const likeCount = document.getElementById('like-count');
+            if (data.liked) {
+                likeButton.querySelector('i').classList.add('text-primary');
+                likeCount.textContent = parseInt(likeCount.textContent) + 1;
+            } else {
+                likeButton.querySelector('i').classList.remove('text-primary');
+                likeCount.textContent = parseInt(likeCount.textContent) - 1;
+            }
+        }
+    });
+}
+
+function likeComment(commentId) {
+    fetch(`/core/comment/${commentId}/like/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const likeCount = document.getElementById(`comment-like-count-${commentId}`);
+            likeCount.textContent = data.like_count;
+        }
+    });
+}
+
+function showReplyForm(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
+}
+
+function subscribe() {
+    fetch(`/users/subscribe/{{ post.creator.username }}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const subscribeButton = document.querySelector('.btn-danger');
+            if (data.subscribed) {
+                subscribeButton.innerHTML = '<i class="fas fa-user-minus"></i> Unsubscribe';
+            } else {
+                subscribeButton.innerHTML = '<i class="fas fa-user-plus"></i> Subscribe';
+            }
+        }
+    });
+}
+</script>
+{% endblock %} 

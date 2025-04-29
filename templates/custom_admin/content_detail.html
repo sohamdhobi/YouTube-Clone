@@ -1,0 +1,744 @@
+{% extends 'custom_admin/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load admin_filters %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<style>
+    .video-container {
+        position: relative;
+        width: 100%;
+        background-color: #000;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .video-container video {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    
+    /* Plyr custom styles */
+    .plyr {
+        border-radius: 4px;
+        overflow: hidden;
+        background: #000;
+    }
+    
+    .plyr--video {
+        height: auto;
+    }
+    
+    .plyr--video .plyr__video-wrapper {
+        position: relative;
+        width: 100%;
+        height: auto;
+    }
+    
+    .plyr--video .plyr__control--overlaid {
+        background: rgba(255, 0, 0, 0.8);
+    }
+    
+    .plyr--video .plyr__control--overlaid:hover {
+        background: #ff0000;
+    }
+    
+    .plyr--full-ui input[type=range] {
+        color: #ff0000;
+    }
+    
+    .plyr__control.plyr__tab-focus,
+    .plyr__control:hover,
+    .plyr__control[aria-expanded=true] {
+        background: #ff0000;
+    }
+    
+    /* Quality selector styles */
+    #quality-selector {
+        position: absolute;
+        bottom: 45px;
+        right: 15px;
+        transition: opacity 0.3s ease;
+        opacity: 1;
+        z-index: 1001;
+    }
+    
+    .plyr--video.plyr--hide-controls #quality-selector {
+        opacity: 0;
+    }
+    
+    #quality-btn {
+        background-color: rgba(28, 28, 28, 0.8);
+        transition: all 0.2s ease;
+        border-radius: 3px;
+    }
+    
+    #quality-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    #quality-menu {
+        background-color: rgba(28, 28, 28, 0.9);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .quality-option.active {
+        color: #ff0000 !important;
+        background-color: rgba(255, 0, 0, 0.2);
+    }
+    
+    .quality-option.active i {
+        color: #ff0000;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumb and Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'custom_admin:content_list' %}">Content</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ video.title|truncatechars:40 }}</li>
+            </ol>
+        </nav>
+        <div>
+            <div class="btn-group">
+                <a href="#" class="btn btn-outline-primary">
+                    <i class="fas fa-eye me-1"></i>View On Site
+                </a>
+                <a href="#" class="btn btn-outline-secondary">
+                    <i class="fas fa-edit me-1"></i>Edit
+                </a>
+                <a href="#" class="btn btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i>Delete
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Details -->
+    <div class="row mb-4">
+        <!-- Left column - Content preview -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Content Preview</h5>
+                    <div>
+                        <span class="badge bg-{{ video.moderation_status|moderation_badge_class }}">
+                            {{ video.moderation_status|title }}
+                        </span>
+                        
+                        {% if not video.is_published %}
+                        <span class="badge bg-secondary ms-1">Not Published</span>
+                        {% endif %}
+                        
+                        {% if video.content_type == 'video' %}
+                        <span class="badge bg-dark ms-1">Video</span>
+                        {% elif video.content_type == 'photo' %}
+                        <span class="badge bg-info ms-1">Photo</span>
+                        {% elif video.content_type == 'blog' %}
+                        <span class="badge bg-success ms-1">Blog</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if video.content_type == 'video' %}
+                        <!-- Video Player -->
+                        <div class="ratio ratio-16x9 mb-3">
+                            <div class="video-container">
+                                <div class="player-wrapper">
+                                    <video
+                                        id="player"
+                                        playsinline
+                                        controls
+                                        crossorigin
+                                        poster="{{ video.thumbnail.url }}"
+                                    >
+                                        {% if video.hls_url and '.m3u8' in video.hls_url %}
+                                        <source src="{{ video.hls_url }}" type="application/x-mpegURL" />
+                                        {% elif video.hls_url %}
+                                        <source src="{{ video.hls_url }}" type="video/mp4" />
+                                        {% endif %}
+                                        {% if video.file %}
+                                        <source src="{{ video.file.url }}" type="video/mp4" />
+                                        {% endif %}
+                                        <p class="plyr__fallback">
+                                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                                        </p>
+                                    </video>
+                                    <!-- Direct quality selector -->
+                                    <div id="quality-selector" class="position-absolute bg-dark bg-opacity-75 rounded text-white">
+                                        <button id="quality-btn" class="btn btn-sm text-white px-2 py-1 d-flex align-items-center">
+                                            <i class="fas fa-cog me-1"></i>
+                                            <span id="current-quality">Auto</span>
+                                            <i class="fas fa-chevron-down ms-1"></i>
+                                        </button>
+                                        <div id="quality-menu" class="position-absolute bottom-100 end-0 mb-1 bg-dark bg-opacity-90 rounded p-2" style="display: none; min-width: 120px;">
+                                            <div class="d-flex flex-column">
+                                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center active" data-value="auto">
+                                                    <i class="fas fa-random me-2"></i> Auto
+                                                </button>
+                                                <!-- Default quality options -->
+                                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="1080">
+                                                    <i class="fas fa-film me-2"></i> 1080p
+                                                </button>
+                                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="720">
+                                                    <i class="fas fa-film me-2"></i> 720p
+                                                </button>
+                                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="480">
+                                                    <i class="fas fa-video me-2"></i> 480p
+                                                </button>
+                                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="360">
+                                                    <i class="fas fa-video me-2"></i> 360p
+                                                </button>
+                                                <button class="quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center" data-value="240">
+                                                    <i class="fas fa-compress me-2"></i> 240p
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% elif video.content_type == 'photo' %}
+                        <!-- Photo Preview -->
+                        <div class="video-thumbnail">
+                            {% if video.image %}
+                                <img src="{{ video.image.url }}" alt="{{ video.title }}">
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Image not available
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% elif video.content_type == 'blog' %}
+                        <!-- Blog Preview -->
+                        <div class="blog-content-preview">
+                            {% if video.thumbnail %}
+                                <div class="video-thumbnail mb-3">
+                                    <img src="{{ video.thumbnail.url }}" alt="{{ video.title }}">
+                                </div>
+                            {% endif %}
+                            
+                            <div class="blog-body">
+                                {% if video.blog_content %}
+                                    {{ video.blog_content|safe }}
+                                {% else %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Blog content not available
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Content Information -->
+                    <h4 class="mt-3">{{ video.title }}</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="badge bg-secondary">{{ video.views }} views</span>
+                            <span class="badge bg-secondary">{{ video.likes }} likes</span>
+                            <span class="badge bg-secondary">{{ video.dislikes }} dislikes</span>
+                        </div>
+                        <div>
+                            <small class="text-muted">Published {{ video.created_at|date:"M d, Y" }}</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Actions -->
+                    <div class="d-flex justify-content-end mb-3">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-danger dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-flag"></i> User Report Options
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown">
+                                <li><h6 class="dropdown-header">Report {{ video.get_content_type_display }}</h6></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=inappropriate">
+                                        <i class="fas fa-exclamation-triangle text-danger me-2"></i> Inappropriate Content
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=spam">
+                                        <i class="fas fa-ban text-danger me-2"></i> Spam or Misleading
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=violence">
+                                        <i class="fas fa-fist-raised text-danger me-2"></i> Violence or Dangerous Content
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=harassment">
+                                        <i class="fas fa-user-slash text-danger me-2"></i> Harassment or Bullying
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=adult">
+                                        <i class="fas fa-exclamation-circle text-danger me-2"></i> Adult/Sexual Content
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=child_safety">
+                                        <i class="fas fa-child text-danger me-2"></i> Child Safety Concern
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=terrorism">
+                                        <i class="fas fa-shield-alt text-danger me-2"></i> Terrorism or Extremism
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=impersonation">
+                                        <i class="fas fa-user-secret text-danger me-2"></i> Impersonation
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=copyright">
+                                        <i class="fas fa-copyright text-danger me-2"></i> Copyright Violation
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=other">
+                                        <i class="fas fa-ellipsis-h text-danger me-2"></i> Other
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <div class="dropdown-item-text small text-muted p-2">
+                                        These options show what users can report. As an admin, you can directly moderate below.
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Creator Info -->
+                    {% if video.creator %}
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if video.creator.avatar %}{{ video.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                 alt="{{ video.creator.username }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                            <div>
+                                <div><a href="{% url 'custom_admin:user_detail' video.creator.id %}">{{ video.creator.username }}</a></div>
+                                <div class="text-muted small">{{ video.creator.subscriber_count }} subscribers</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Description -->
+                    <div class="mt-3">
+                        <h6>Description</h6>
+                        <p>{{ video.description|linebreaksbr|default:"No description provided." }}</p>
+                    </div>
+                    
+                    <!-- Alerts for reported content -->
+                    {% if is_reported %}
+                    <div class="alert alert-danger mt-3">
+                        <h6><i class="fas fa-flag me-2"></i>This content has been reported</h6>
+                        <p class="mb-0">There are {{ report_count }} active reports against this content. Please review them below.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Reports Section (if reported) -->
+            {% if is_reported %}
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Reports</h5>
+                </div>
+                <div class="card-body">
+                    {% if reports %}
+                    <div class="list-group">
+                        {% for report in reports %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Report #{{ report.id }}</h6>
+                                    <p class="mb-1">
+                                        <strong>Reason:</strong> {{ report.get_reason_display }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Description:</strong> {{ report.description|default:"No description provided." }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Reported by:</strong> 
+                                        {% if report.user %}
+                                        <a href="{% url 'custom_admin:user_detail' report.user.id %}">{{ report.user.username }}</a>
+                                        {% else %}
+                                        Anonymous
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">Reported on {{ report.created_at|date:"M d, Y" }}</small>
+                                </div>
+                                <div>
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="resolve_report">
+                                        <input type="hidden" name="report_id" value="{{ report.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-check me-1"></i>Mark Resolved
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>All reports for this content have been resolved.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Right column - Moderation actions -->
+        <div class="col-lg-4">
+            <!-- Moderation Actions Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Moderation Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="moderate_content">
+                        <!-- Always include current moderation status as a hidden field -->
+                        <input type="hidden" name="current_moderation_status" value="{{ video.moderation_status }}">
+                        
+                        <!-- Moderation Status -->
+                        <div class="mb-3">
+                            <label class="form-label">Update Status</label>
+                            <div class="d-flex flex-column gap-2">
+                                {% if video.moderation_status == 'pending' %}
+                                <button type="submit" name="moderation_status" value="approved" class="btn btn-success">
+                                    <i class="fas fa-check me-2"></i>Approve Content
+                                </button>
+                                <button type="submit" name="moderation_status" value="rejected" class="btn btn-danger">
+                                    <i class="fas fa-ban me-2"></i>Reject Content
+                                </button>
+                                {% elif video.moderation_status == 'approved' %}
+                                <button type="submit" name="moderation_status" value="rejected" class="btn btn-danger">
+                                    <i class="fas fa-ban me-2"></i>Reject Content
+                                </button>
+                                {% elif video.moderation_status == 'rejected' %}
+                                <button type="submit" name="moderation_status" value="approved" class="btn btn-success">
+                                    <i class="fas fa-check me-2"></i>Approve Content
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Publishing Options -->
+                        <div class="mb-3">
+                            <label class="form-label">Publishing Options</label>
+                            <div class="d-flex flex-column gap-2">
+                                {% if video.is_published %}
+                                <button type="submit" name="moderation_action" value="unpublish" class="btn btn-outline-secondary">
+                                    <i class="fas fa-eye-slash me-2"></i>Unpublish
+                                </button>
+                                {% else %}
+                                <button type="submit" name="moderation_action" value="publish" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye me-2"></i>Publish
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Moderation Notes -->
+                        <div class="mb-3">
+                            <label for="moderation_notes" class="form-label">Internal Notes</label>
+                            <textarea class="form-control" id="moderation_notes" name="moderation_notes" rows="3">{{ video.moderation_notes }}</textarea>
+                            <div class="form-text">These notes are only visible to admins</div>
+                        </div>
+                        
+                        <!-- Creator Notification -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="notify_creator" name="notify_creator" value="1" checked>
+                                <label class="form-check-label" for="notify_creator">
+                                    Notify creator of changes
+                                </label>
+                            </div>
+                            <!-- Creator message field (appears when notify is checked) -->
+                            <div id="creator_message_container" class="mt-2">
+                                <label for="creator_message" class="form-label">Message to Creator</label>
+                                <textarea class="form-control" id="creator_message" name="creator_message" rows="2" placeholder="Explain the moderation action to the creator (will use default message if empty)...">{{ video.creator_message }}</textarea>
+                                <div class="form-text">Leave empty to use a default message based on the action taken.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Warning Option -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="warn_creator" name="warn_creator" value="1">
+                                <label class="form-check-label" for="warn_creator">
+                                    Send warning to creator
+                                </label>
+                            </div>
+                            <div class="form-text">Use this for policy violations</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </form>
+                    
+                    <!-- Delete Content -->
+                    <div class="mt-4">
+                        <hr>
+                        <h6>Delete Content</h6>
+                        <p class="text-muted small">This action cannot be undone. All data related to this content will be permanently removed.</p>
+                        <form method="post" onsubmit="return confirm('Are you sure you want to delete this content? This action cannot be undone.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_content">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="fas fa-trash-alt me-2"></i>Delete Content
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Moderation History Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Moderation History</h5>
+                </div>
+                <div class="card-body">
+                    {% if moderation_history %}
+                    <ul class="list-group list-group-flush">
+                        {% for history in moderation_history %}
+                        <li class="list-group-item px-0">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>{{ history.action }}</strong>
+                                    <div class="text-muted small">{{ history.timestamp|date:"M d, Y H:i" }}</div>
+                                </div>
+                                <div>
+                                    <span class="badge bg-secondary">{{ history.admin.username }}</span>
+                                </div>
+                            </div>
+                            {% if history.notes %}
+                            <div class="mt-2 small">
+                                {{ history.notes }}
+                            </div>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No moderation history available.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Plyr
+        const player = new Plyr('#player', {
+            controls: [
+                'play-large', 'play', 'progress', 'current-time', 'mute', 
+                'volume', 'settings', 'pip', 'airplay', 'fullscreen'
+            ],
+            settings: ['captions', 'quality', 'speed'],
+            quality: { default: 720, options: [1080, 720, 480, 360, 240] },
+            seekTime: 10,
+            tooltips: { controls: true, seek: true },
+            captions: { active: true, language: 'auto', update: true },
+            storage: { enabled: true, key: 'plyr' }
+        });
+        
+        // Quality selector functionality
+        const qualityBtn = document.getElementById('quality-btn');
+        const qualityMenu = document.getElementById('quality-menu');
+        const qualityOptions = document.querySelectorAll('.quality-option');
+        const currentQualityText = document.getElementById('current-quality');
+        
+        // Toggle quality menu
+        qualityBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            qualityMenu.style.display = qualityMenu.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Hide menu when clicking elsewhere
+        document.addEventListener('click', function() {
+            qualityMenu.style.display = 'none';
+        });
+        
+        // Prevent menu from closing when clicking inside it
+        qualityMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        // Handle quality selection
+        qualityOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                const quality = this.getAttribute('data-value');
+                
+                // Update active state
+                qualityOptions.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update displayed quality
+                currentQualityText.textContent = quality === 'auto' ? 'Auto' : quality + 'p';
+                
+                // Close menu
+                qualityMenu.style.display = 'none';
+                
+                // Set quality in player
+                if (player.hls) {
+                    if (quality === 'auto') {
+                        player.hls.currentLevel = -1; // Auto
+                    } else {
+                        // Find the closest matching quality level
+                        const levels = player.hls.levels;
+                        const targetHeight = parseInt(quality);
+                        
+                        if (levels && levels.length > 0) {
+                            let bestMatch = 0;
+                            let minDiff = Math.abs(levels[0].height - targetHeight);
+                            
+                            for (let i = 1; i < levels.length; i++) {
+                                const diff = Math.abs(levels[i].height - targetHeight);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    bestMatch = i;
+                                }
+                            }
+                            
+                            player.hls.currentLevel = bestMatch;
+                        }
+                    }
+                } else {
+                    // Fallback for non-HLS video - use native quality selection if available
+                    if (player.quality) {
+                        player.quality = quality === 'auto' ? 'default' : quality;
+                    }
+                }
+                
+                // Save preference
+                localStorage.setItem('preferred_quality', quality);
+            });
+        });
+        
+        // Load saved preference
+        const savedQuality = localStorage.getItem('preferred_quality') || 'auto';
+        const savedOption = document.querySelector(`.quality-option[data-value="${savedQuality}"]`);
+        if (savedOption) {
+            savedOption.click();
+        }
+        
+        // Show quality selector only when quality levels are detected
+        player.on('loadedmetadata', () => {
+            // Show quality selector if we have HLS with multiple levels
+            if (player.hls && player.hls.levels && player.hls.levels.length > 1) {
+                document.getElementById('quality-selector').style.display = 'block';
+                
+                // Populate quality options with actual available qualities
+                const availableQualities = player.hls.levels.map(level => level.height);
+                
+                // If we have actual qualities, update the menu
+                if (availableQualities.length > 1) {
+                    // Clear default options except Auto
+                    const qualityOptionsContainer = document.querySelector('#quality-menu .d-flex');
+                    const autoOption = qualityOptionsContainer.querySelector('[data-value="auto"]');
+                    qualityOptionsContainer.innerHTML = '';
+                    qualityOptionsContainer.appendChild(autoOption);
+                    
+                    // Add available qualities
+                    availableQualities.sort((a, b) => b - a).forEach(height => {
+                        const option = document.createElement('button');
+                        option.className = 'quality-option btn btn-sm text-white text-start mb-1 d-flex align-items-center';
+                        option.setAttribute('data-value', height);
+                        
+                        const icon = document.createElement('i');
+                        if (height >= 720) {
+                            icon.className = 'fas fa-film me-2';
+                        } else {
+                            icon.className = 'fas fa-video me-2';
+                        }
+                        
+                        option.appendChild(icon);
+                        option.appendChild(document.createTextNode(height + 'p'));
+                        
+                        option.addEventListener('click', function() {
+                            // Same click handler as before
+                            const quality = this.getAttribute('data-value');
+                            
+                            qualityOptions.forEach(opt => opt.classList.remove('active'));
+                            this.classList.add('active');
+                            
+                            currentQualityText.textContent = quality === 'auto' ? 'Auto' : quality + 'p';
+                            qualityMenu.style.display = 'none';
+                            
+                            if (player.hls) {
+                                if (quality === 'auto') {
+                                    player.hls.currentLevel = -1;
+                                } else {
+                                    const levels = player.hls.levels;
+                                    const targetHeight = parseInt(quality);
+                                    
+                                    if (levels && levels.length > 0) {
+                                        let bestMatch = 0;
+                                        let minDiff = Math.abs(levels[0].height - targetHeight);
+                                        
+                                        for (let i = 1; i < levels.length; i++) {
+                                            const diff = Math.abs(levels[i].height - targetHeight);
+                                            if (diff < minDiff) {
+                                                minDiff = diff;
+                                                bestMatch = i;
+                                            }
+                                        }
+                                        
+                                        player.hls.currentLevel = bestMatch;
+                                    }
+                                }
+                            }
+                            
+                            localStorage.setItem('preferred_quality', quality);
+                        });
+                        
+                        qualityOptionsContainer.appendChild(option);
+                    });
+                }
+            } else {
+                // Show default quality options for non-HLS videos
+                document.getElementById('quality-selector').style.display = 'block';
+            }
+        });
+
+        // Toggle creator message field visibility
+        const notifyCreatorCheckbox = document.getElementById('notify_creator');
+        const creatorMessageContainer = document.getElementById('creator_message_container');
+        
+        function toggleCreatorMessage() {
+            creatorMessageContainer.style.display = notifyCreatorCheckbox.checked ? 'block' : 'none';
+        }
+        
+        notifyCreatorCheckbox.addEventListener('change', toggleCreatorMessage);
+        toggleCreatorMessage(); // Initial state
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h4 class="mb-0">Notifications</h4>
+                </div>
+                <div class="card-body p-0">
+                    {% if notifications %}
+                        <div class="list-group list-group-flush">
+                            {% for notification in notifications %}
+                                <div class="list-group-item {% if not notification.read %}bg-light{% endif %}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            {% if notification.sender.avatar %}
+                                                <img src="{{ notification.sender.avatar.url }}" alt="{{ notification.sender.username }}" class="rounded-circle" width="40" height="40">
+                                            {% else %}
+                                                <img src="{% static 'images/default-avatar.png' %}" alt="Default avatar" class="rounded-circle" width="40" height="40">
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <p class="mb-1">
+                                                <strong>{{ notification.sender.username }}</strong>
+                                                {% if notification.notification_type == 'like' %}
+                                                    liked your {{ notification.content_type.model }}
+                                                {% elif notification.notification_type == 'comment' %}
+                                                    commented on your {{ notification.content_type.model }}
+                                                {% elif notification.notification_type == 'reply' %}
+                                                    replied to your comment on {{ notification.content_type.model }}
+                                                {% endif %}
+                                            </p>
+                                            <small class="text-muted">{{ notification.created_at|date:"F j, Y, g:i a" }}</small>
+                                        </div>
+                                        <div class="ms-3">
+                                            <a href="{{ notification.get_absolute_url }}" class="btn btn-sm btn-primary">View</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No notifications yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

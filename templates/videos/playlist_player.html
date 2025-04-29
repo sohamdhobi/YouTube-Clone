@@ -1,0 +1,1170 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% load video_tags %}
+
+{% block title %}{{ playlist.title }} - {{ current_video.title }} - YouTube Clone{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.css">
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<style>
+    .playlist-items {
+        max-height: calc(100vh - 300px);
+        overflow-y: auto;
+    }
+    .playlist-item {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .playlist-item:hover {
+        background-color: #f8f9fa;
+    }
+    .playlist-item.active {
+        background-color: #e9ecef;
+        border-left: 3px solid #0d6efd;
+    }
+    
+    /* Video player styles */
+    .video-player-wrapper {
+        display: block;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+        background-color: #000;
+        overflow: visible;
+    }
+    
+    #videoPlayer {
+        width: 100%;
+        height: auto;
+        background-color: #000;
+        cursor: pointer;
+    }
+    
+    #videoPreview {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        transform: translateX(-50%);
+        left: 50%;
+        pointer-events: none;
+    }
+    
+    #previewImage {
+        display: block;
+        border-radius: 2px;
+        background-color: #000;
+    }
+    
+    .playlist-thumbnail {
+        width: 120px;
+        height: 68px;
+        object-fit: cover;
+    }
+    
+    .drag-handle {
+        cursor: move;
+        color: #adb5bd;
+    }
+    
+    .playlist-container {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .playlist-item.sortable-ghost {
+        opacity: 0.5;
+        background-color: #e9ecef;
+    }
+    
+    .sortable-handle {
+        cursor: grab;
+    }
+    
+    .video-container {
+        position: relative;
+        width: 100%;
+        background-color: #000;
+        overflow: hidden;
+        height: 0;
+        padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+    }
+    
+    .video-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    
+    .action-buttons {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 100;
+    }
+    
+    .content-display {
+        position: relative;
+    }
+    
+    .photo-display img {
+        max-height: 70vh;
+        width: auto;
+    }
+    
+    .empty-playlist {
+        padding: 50px 20px;
+        text-align: center;
+    }
+    
+    .content-badge {
+        font-size: 0.75rem;
+    }
+    
+    /* Custom video controls */
+    .custom-video-controls {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+        padding: 30px 15px 10px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 10;
+    }
+    
+    .video-player-wrapper:hover .custom-video-controls {
+        opacity: 1;
+    }
+    
+    /* Progress bar */
+    .progress-container {
+        position: relative;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .progress-hover-area {
+        height: 15px;
+        position: relative;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+    
+    .progress-bar {
+        height: 4px;
+        width: 100%;
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        overflow: hidden;
+        transition: height 0.2s;
+    }
+    
+    .progress-hover-area:hover .progress-bar {
+        height: 6px;
+    }
+    
+    .progress-filled {
+        height: 100%;
+        width: 0%;
+        background-color: #ff0000;
+        border-radius: 2px;
+        position: relative;
+    }
+    
+    .progress-handle {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background-color: #ff0000;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        left: 0%;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .progress-hover-area:hover .progress-handle {
+        opacity: 1;
+    }
+    
+    /* Preview on hover */
+    .preview-container {
+        position: absolute;
+        top: -100px;
+        left: 0;
+        width: 100%;
+        height: 84px;
+        display: flex;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .preview-box {
+        position: absolute;
+        width: 150px;
+        background-color: #000;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        transform: translateX(-50%);
+        bottom: 15px;
+    }
+    
+    .preview-box img {
+        width: 100%;
+        height: 84px;
+        object-fit: contain;
+        background-color: #000;
+    }
+    
+    .preview-box span {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: white;
+        background-color: rgba(0,0,0,0.7);
+        font-size: 12px;
+        padding: 2px 0;
+    }
+    
+    /* Controls wrapper */
+    .controls-wrapper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .left-controls, .right-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    /* Control buttons */
+    .control-btn {
+        background: transparent;
+        border: none;
+        color: white;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        border-radius: 4px;
+    }
+    
+    .control-btn:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .control-btn:focus {
+        outline: none;
+    }
+    
+    /* Volume control */
+    .volume-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    
+    .volume-slider-container {
+        width: 0;
+        overflow: hidden;
+        transition: width 0.3s;
+        margin-left: 5px;
+    }
+    
+    .volume-container:hover .volume-slider-container {
+        width: 60px;
+    }
+    
+    #volumeSlider {
+        -webkit-appearance: none;
+        width: 60px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        outline: none;
+        border-radius: 2px;
+    }
+    
+    #volumeSlider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+    
+    #volumeSlider::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+    }
+    
+    /* Time display */
+    .time-display {
+        font-size: 14px;
+        color: white;
+        min-width: 80px;
+    }
+    
+    /* Speed and quality selectors */
+    .speed-selector, .quality-selector {
+        position: relative;
+    }
+    
+    .speed-options, .quality-options {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background-color: rgba(28, 28, 28, 0.9);
+        border-radius: 4px;
+        padding: 5px 0;
+        margin-bottom: 5px;
+        display: none;
+        flex-direction: column;
+        width: 80px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 20;
+    }
+    
+    .speed-selector:hover .speed-options,
+    .quality-selector:hover .quality-options {
+        display: flex;
+    }
+    
+    .speed-options button, .quality-options button {
+        background: transparent;
+        border: none;
+        color: white;
+        padding: 8px 10px;
+        cursor: pointer;
+        text-align: center;
+        font-size: 14px;
+    }
+    
+    .speed-options button:hover, .quality-options button:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .speed-options button.active, .quality-options button.active {
+        color: #ff0000;
+        font-weight: bold;
+    }
+    
+    /* Plyr custom styles */
+    .plyr {
+        border-radius: 4px;
+        overflow: hidden;
+        background: #000;
+    }
+    
+    .plyr--video {
+        height: 0;
+        padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+    }
+    
+    .plyr--video .plyr__video-wrapper {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .plyr--video .plyr__control--overlaid {
+        background: rgba(255, 0, 0, 0.8);
+    }
+    
+    .plyr--video .plyr__control--overlaid:hover {
+        background: #ff0000;
+    }
+    
+    .plyr--full-ui input[type=range] {
+        color: #ff0000;
+    }
+    
+    .plyr__control.plyr__tab-focus,
+    .plyr__control:hover,
+    .plyr__control[aria-expanded=true] {
+        background: #ff0000;
+    }
+    
+    .plyr__menu__container {
+        background: rgba(28, 28, 28, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
+    
+    .plyr__menu__container [role="menuitem"] {
+        color: #fff;
+    }
+    
+    .plyr__menu__container [role="menuitem"]:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .plyr__menu__container [role="menuitem"][aria-checked="true"] {
+        color: #ff0000;
+    }
+    
+    .plyr__control[data-plyr="quality"] {
+        position: relative;
+    }
+    
+    .plyr__control[data-plyr="quality"]::after {
+        content: attr(data-quality);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .plyr__control[data-plyr="quality"]:hover::after {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% csrf_token %}
+    <div class="row">
+        <!-- Playlist Header -->
+        <div class="col-12 mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">{{ playlist.title }}</h1>
+                    <p class="text-muted mb-0">
+                        {{ playlist_items.count }} item{% if playlist_items.count != 1 %}s{% endif %} •
+                        Created by <a href="{% url 'users:channel' playlist.creator.username %}">{{ playlist.creator.username }}</a> •
+                        Created {{ playlist.created_at|date:"F j, Y" }}
+                        {% if not playlist.is_public %}
+                            • <span class="badge bg-secondary"><i class="fas fa-lock"></i> Private</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if user == playlist.creator %}
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="playlistOptionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="playlistOptionsDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'videos:playlist_edit' playlist.pk %}">
+                                        <i class="fas fa-edit"></i> Edit Playlist
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deletePlaylistModal">
+                                        <i class="fas fa-trash"></i> Delete Playlist
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% if playlist.description %}
+                <p class="mt-2">{{ playlist.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            {% if current_video %}
+                <div class="content-display mb-4">
+                    <div class="action-buttons">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoplaySwitch" checked>
+                            <label class="form-check-label text-white" for="autoplaySwitch">Autoplay</label>
+                        </div>
+                    </div>
+
+                    {% if current_video.content_type == 'video' %}
+                        <div class="video-container mb-3">
+                            <video
+                                id="player"
+                                playsinline
+                                controls
+                                crossorigin
+                                poster="{{ current_video.thumbnail.url }}"
+                            >
+                                <source src="{{ current_video.hls_url }}" type="application/x-mpegURL" />
+                                <p class="plyr__fallback">
+                                    To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                    <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                                </p>
+                            </video>
+                        </div>
+                    {% elif current_video.content_type == 'photo' %}
+                        <div class="photo-display text-center mb-3">
+                            <img src="{{ current_video.image.url }}" class="img-fluid rounded" alt="{{ current_video.title }}">
+                        </div>
+                    {% elif current_video.content_type == 'blog' %}
+                        <div class="blog-display card mb-3">
+                            <div class="card-header">
+                                <h2>{{ current_video.title }}</h2>
+                                <small class="text-muted">{{ current_video.created_at|date:"F d, Y" }}</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="blog-thumbnail mb-3">
+                                    <img src="{{ current_video.thumbnail.url }}" class="img-fluid rounded" alt="{{ current_video.title }}">
+                                </div>
+                                <div class="blog-content">
+                                    {{ current_video.blog_content|linebreaks }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Content Info -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h2 class="card-title h4">{{ current_video.title }}</h2>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <span class="text-muted">
+                                        <i class="fas fa-eye"></i> {{ current_video.views|format_view_count }} views
+                                    </span>
+                                    <span class="text-muted ms-3">
+                                        <i class="fas fa-calendar"></i> {{ current_video.created_at|date:"M d, Y" }}
+                                    </span>
+                                    <span class="text-muted ms-3">
+                                        <i class="fas {% if current_video.content_type == 'video' %}fa-video{% elif current_video.content_type == 'photo' %}fa-image{% elif current_video.content_type == 'blog' %}fa-blog{% endif %}"></i>
+                                        {{ current_video.get_content_type_display }}
+                                    </span>
+                                </div>
+                                <div class="d-flex">
+                                    <form method="post" action="{% url 'videos:like' current_video.slug %}" id="like-form" class="me-2">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn {% if is_liked %}btn-primary{% else %}btn-tertiary{% endif %}" onclick="likeVideo()">
+                                            <i class="fas fa-thumbs-up"></i>
+                                            <span id="like-count">{{ current_video.like_count }}</span>
+                                        </button>
+                                    </form>
+                                    
+                                    {% if user.is_authenticated and user != current_video.creator %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-danger dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-flag"></i> Report
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown">
+                                            <li><h6 class="dropdown-header">Report {{ current_video.get_content_type_display }}</h6></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=inappropriate">
+                                                    <i class="fas fa-exclamation-triangle text-danger me-2"></i> Inappropriate Content
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=spam">
+                                                    <i class="fas fa-ban text-danger me-2"></i> Spam or Misleading
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=violence">
+                                                    <i class="fas fa-fist-raised text-danger me-2"></i> Violence or Dangerous Content
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=harassment">
+                                                    <i class="fas fa-user-slash text-danger me-2"></i> Harassment or Bullying
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=adult">
+                                                    <i class="fas fa-exclamation-circle text-danger me-2"></i> Adult/Sexual Content
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=child_safety">
+                                                    <i class="fas fa-child text-danger me-2"></i> Child Safety Concern
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=terrorism">
+                                                    <i class="fas fa-shield-alt text-danger me-2"></i> Terrorism or Extremism
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=impersonation">
+                                                    <i class="fas fa-user-secret text-danger me-2"></i> Impersonation
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=copyright">
+                                                    <i class="fas fa-copyright text-danger me-2"></i> Copyright Violation
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'core:report_content' current_video.content_type current_video.id %}?reason=other">
+                                                    <i class="fas fa-ellipsis-h text-danger me-2"></i> Other
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <div class="dropdown-item-text small text-muted p-2">
+                                                    Please report content that violates our guidelines. We take reports seriously and will review them promptly.
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <img src="{% if current_video.creator.avatar %}{{ current_video.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                    alt="{{ current_video.creator.username }}" 
+                                    class="rounded-circle me-2"
+                                    width="40" height="40">
+                                <div>
+                                    <h6 class="mb-0">{{ current_video.creator.username }}</h6>
+                                    {% if user.is_authenticated and user != current_video.creator %}
+                                    <form action="{% url 'users:subscribe' current_video.creator.username %}" method="post" class="d-inline" id="subscribe-form">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn {% if is_subscribed %}btn-secondary{% else %}btn-danger{% endif %}" onclick="subscribe()">
+                                            <i class="fas {% if is_subscribed %}fa-user-minus{% else %}fa-user-plus{% endif %}"></i>
+                                            <span class="subscribe-text">{% if is_subscribed %}Unsubscribe{% else %}Subscribe{% endif %}</span>
+                                        </button>
+                                    </form>
+                                    <small class="text-muted ms-2" id="subscriber-count">{{ current_video.creator.subscriber_count }} subscribers</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-text">
+                                {{ current_video.description|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-comments"></i> Comments ({{ current_video.comment_count }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if user.is_authenticated %}
+                            <form method="post" action="{% url 'videos:comment' current_video.slug %}" class="mb-4">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <label for="comment-text">Your comment</label>
+                                    <textarea name="text" id="comment-text" class="form-control" rows="3" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-2">
+                                    <i class="fas fa-paper-plane"></i> Comment
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="alert alert-info">
+                                Please <a href="{% url 'account_login' %}">login</a> to leave a comment.
+                            </div>
+                            {% endif %}
+
+                            <div class="comments-section">
+                                {% for comment in comments %}
+                                    {% if not comment.parent %}
+                                        {% include "videos/comment.html" with comment=comment %}
+                                    {% endif %}
+                                {% empty %}
+                                <p class="text-muted">No comments yet. Be the first to comment!</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card">
+                    <div class="card-body empty-playlist">
+                        <i class="fas fa-list fa-3x text-muted mb-3"></i>
+                        <h2 class="h4">This playlist is empty</h2>
+                        <p class="text-muted">There are no videos in this playlist yet.</p>
+                        {% if user == playlist.creator %}
+                            <a href="{% url 'videos:browse' %}" class="btn btn-primary mt-2">
+                                <i class="fas fa-plus"></i> Add Videos
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Playlist Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Playlist Items</h5>
+                    {% if user == playlist.creator and playlist_items.count > 1 %}
+                        <button id="toggleReorderMode" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-sort"></i> Reorder
+                        </button>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if playlist_items %}
+                        <ul class="list-group list-group-flush playlist-items" id="playlistItemsList">
+                            {% for item in playlist_items %}
+                                <li class="list-group-item playlist-item d-flex align-items-center gap-2 ps-2 pe-1 py-2 {% if current_video.id == item.video.id %}active{% endif %}" 
+                                    data-item-id="{{ item.id }}">
+                                    {% if user == playlist.creator %}
+                                        <div class="sortable-handle me-1 d-none">
+                                            <i class="fas fa-grip-vertical text-muted"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div class="position-relative flex-shrink-0" style="width: 100px;">
+                                        {% if item.video.content_type == 'video' %}
+                                            <img src="{{ item.video.thumbnail.url }}" class="rounded" width="100" alt="{{ item.video.title }}">
+                                            <span class="badge bg-dark position-absolute bottom-0 end-0 m-1 content-badge">
+                                                <i class="fas fa-video"></i>
+                                            </span>
+                                        {% elif item.video.content_type == 'photo' %}
+                                            <img src="{{ item.video.image.url }}" class="rounded" width="100" alt="{{ item.video.title }}">
+                                            <span class="badge bg-info position-absolute bottom-0 end-0 m-1 content-badge">
+                                                <i class="fas fa-camera"></i>
+                                            </span>
+                                        {% elif item.video.content_type == 'blog' %}
+                                            {% if item.video.image %}
+                                                <img src="{{ item.video.image.url }}" class="rounded" width="100" alt="{{ item.video.title }}">
+                                            {% else %}
+                                                <div class="bg-light rounded text-center" style="width:100px;height:56px;">
+                                                    <i class="fas fa-file-alt text-muted" style="line-height: 56px;"></i>
+                                                </div>
+                                            {% endif %}
+                                            <span class="badge bg-success position-absolute bottom-0 end-0 m-1 content-badge">
+                                                <i class="fas fa-file-alt"></i>
+                                            </span>
+                                        {% endif %}
+                                        <span class="badge bg-secondary position-absolute top-0 start-0 m-1 content-badge">
+                                            {{ item.order }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-2">
+                                        <a href="{% url 'videos:playlist_player' playlist.pk %}?video={{ item.video.id }}" class="stretched-link item-link">
+                                            <h6 class="mb-0 text-truncate">{{ item.video.title }}</h6>
+                                        </a>
+                                        <small class="text-muted d-block">{{ item.video.creator.username }}</small>
+                                    </div>
+                                    {% if user == playlist.creator %}
+                                        <div class="remove-item d-none ms-2 z-3 position-relative">
+                                            <form action="{% url 'videos:playlist_remove_item' playlist.pk item.video.pk %}" method="POST"
+                                                  onsubmit="return confirm('Remove this item from the playlist?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from playlist">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="p-4 text-center">
+                            <p class="text-muted">No items in this playlist</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Playlist Modal -->
+{% if user == playlist.creator %}
+<div class="modal fade" id="deletePlaylistModal" tabindex="-1" aria-labelledby="deletePlaylistModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deletePlaylistModalLabel">Delete Playlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the playlist "{{ playlist.title }}"?</p>
+                <p class="text-danger"><strong>This action cannot be undone.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{% url 'videos:playlist_delete' playlist.pk %}" method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Plyr player
+    const player = new Plyr('#player', {
+        controls: [
+            'play-large',
+            'play',
+            'progress',
+            'current-time',
+            'mute',
+            'volume',
+            'captions',
+            'settings',
+            'pip',
+            'airplay',
+            'fullscreen'
+        ],
+        quality: {
+            default: 720,
+            options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240]
+        }
+    });
+
+    // Initialize HLS.js
+    const video = document.querySelector('#player');
+    const hlsUrl = video.querySelector('source').src;
+
+    if (Hls.isSupported()) {
+        const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 90,
+            maxBufferLength: 30,
+            maxBufferSize: 60 * 1024 * 1024,
+            maxBufferHole: 0.5,
+            maxStarvationDelay: 4,
+            maxLoadingDelay: 4,
+            manifestLoadingTimeOut: 10000,
+            manifestLoadingMaxRetry: 6,
+            manifestLoadingRetryDelay: 500,
+            levelLoadingTimeOut: 10000,
+            levelLoadingMaxRetry: 6,
+            levelLoadingRetryDelay: 500,
+            fragLoadingTimeOut: 20000,
+            fragLoadingMaxRetry: 6,
+            fragLoadingRetryDelay: 500,
+            startFragPrefetch: true,
+            testBandwidth: true,
+            progressive: true,
+            lowLatencyMode: true,
+            debug: false
+        });
+
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+
+        // Handle quality selection
+        hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+            const levels = data.levels;
+            const qualityLevels = levels.map(level => ({
+                height: level.height,
+                bitrate: level.bitrate,
+                label: `${level.height}p (${Math.round(level.bitrate / 1000)}kbps)`
+            }));
+
+            // Update quality options
+            player.quality = {
+                default: 720,
+                options: qualityLevels.map(level => level.height)
+            };
+
+            // Apply saved quality preference
+            const savedQuality = localStorage.getItem('videoQualityPreference');
+            if (savedQuality) {
+                const targetLevel = levels.findIndex(level => level.height === parseInt(savedQuality));
+                if (targetLevel !== -1) {
+                    hls.currentLevel = targetLevel;
+                }
+            }
+        });
+
+        // Save quality preference when changed
+        hls.on(Hls.Events.LEVEL_SWITCHED, function(event, data) {
+            const level = hls.levels[data.level];
+            localStorage.setItem('videoQualityPreference', level.height);
+        });
+    }
+    // For browsers that natively support HLS
+    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = hlsUrl;
+    }
+
+    // Autoplay if enabled
+    const autoplaySwitch = document.getElementById('autoplaySwitch');
+    if (autoplaySwitch && autoplaySwitch.checked) {
+        player.play().catch(error => {
+            console.warn("Autoplay was prevented:", error);
+        });
+    }
+
+    // Handle video end
+    player.on('ended', function() {
+        if (autoplaySwitch && autoplaySwitch.checked) {
+            const nextItem = {% if next_item %}"{% url 'videos:playlist_player' playlist.pk %}?video={{ next_item.video.id }}"{% else %}null{% endif %};
+            if (nextItem) {
+                window.location.href = nextItem;
+            }
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        const rect = player.elements.container.getBoundingClientRect();
+        if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+            if (e.key === ' ' || e.key === 'k') {
+                player.togglePlay();
+                e.preventDefault();
+            } else if (e.key === 'm') {
+                player.toggleMute();
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft') {
+                player.rewind(5);
+                e.preventDefault();
+            } else if (e.key === 'ArrowRight') {
+                player.forward(5);
+                e.preventDefault();
+            } else if (e.key === 'ArrowUp') {
+                player.volume = Math.min(1, player.volume + 0.1);
+                e.preventDefault();
+            } else if (e.key === 'ArrowDown') {
+                player.volume = Math.max(0, player.volume - 0.1);
+                e.preventDefault();
+            }
+        }
+    });
+
+    // Playlist reordering functionality
+    const playlistItems = document.getElementById('playlistItemsList');
+    const toggleReorderBtn = document.getElementById('toggleReorderMode');
+    
+    if (toggleReorderBtn && playlistItems) {
+        let isReorderMode = false;
+        
+        toggleReorderBtn.addEventListener('click', function() {
+            isReorderMode = !isReorderMode;
+            toggleReorderMode(isReorderMode);
+        });
+        
+        function toggleReorderMode(enable) {
+            const handles = document.querySelectorAll('.sortable-handle');
+            const removeButtons = document.querySelectorAll('.remove-item');
+            const links = document.querySelectorAll('.item-link');
+            
+            if (enable) {
+                // Enable reorder mode
+                toggleReorderBtn.innerHTML = '<i class="fas fa-save"></i> Save Order';
+                toggleReorderBtn.classList.remove('btn-outline-primary');
+                toggleReorderBtn.classList.add('btn-primary');
+                
+                // Show drag handles and remove buttons
+                handles.forEach(handle => handle.classList.remove('d-none'));
+                removeButtons.forEach(btn => btn.classList.remove('d-none'));
+                
+                // Disable links
+                links.forEach(link => {
+                    link.style.pointerEvents = 'none';
+                });
+                
+                // Initialize Sortable
+                sortable = new Sortable(playlistItems, {
+                    handle: '.sortable-handle',
+                    animation: 150,
+                    onEnd: function(evt) {
+                        // Do nothing on drag end - we'll save when the user clicks Save
+                    }
+                });
+            } else {
+                // Disable reorder mode
+                toggleReorderBtn.innerHTML = '<i class="fas fa-sort"></i> Reorder';
+                toggleReorderBtn.classList.remove('btn-primary');
+                toggleReorderBtn.classList.add('btn-outline-primary');
+                
+                // Hide drag handles and remove buttons
+                handles.forEach(handle => handle.classList.add('d-none'));
+                removeButtons.forEach(btn => btn.classList.add('d-none'));
+                
+                // Enable links
+                links.forEach(link => {
+                    link.style.pointerEvents = 'auto';
+                });
+                
+                // Save the new order
+                if (sortable) {
+                    saveNewOrder();
+                    sortable.destroy();
+                    sortable = null;
+                }
+            }
+        }
+        
+        function saveNewOrder() {
+            const items = document.querySelectorAll('.playlist-item');
+            const itemIds = Array.from(items).map(item => item.dataset.itemId);
+            
+            // Create FormData and append each item ID separately
+            const formData = new FormData();
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            // Add CSRF token
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            // Add each item ID as a separate field with the same name
+            itemIds.forEach(id => {
+                formData.append('item_order[]', id);
+            });
+            
+            fetch('{% url "videos:playlist_reorder" playlist.pk %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the order numbers
+                    items.forEach((item, index) => {
+                        const orderBadge = item.querySelector('.badge.bg-secondary');
+                        if (orderBadge) {
+                            orderBadge.textContent = index + 1;
+                        }
+                    });
+                } else {
+                    console.error('Error saving playlist order:', data.error);
+                    alert('Failed to save the playlist order. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the playlist order.');
+            });
+        }
+    }
+    
+    // Like and subscribe functionality
+    window.likeVideo = function() {
+        const form = document.getElementById('like-form');
+        const formData = new FormData(form);
+        const likeButton = form.querySelector('button');
+        
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const likeCount = document.getElementById('like-count');
+                
+                // Update button color
+                if (data.liked) {
+                    likeButton.classList.remove('btn-tertiary');
+                    likeButton.classList.add('btn-primary');
+                } else {
+                    likeButton.classList.remove('btn-primary');
+                    likeButton.classList.add('btn-tertiary');
+                }
+                
+                likeCount.textContent = data.like_count;
+            } else {
+                console.error('Server returned error:', data);
+                alert(data.error || 'An error occurred while processing your request');
+            }
+        })
+        .catch(error => {
+            console.error('Error details:', error);
+            alert('An error occurred while processing your request. Please check the console for details.');
+        });
+    };
+    
+    window.subscribe = function() {
+        const form = document.getElementById('subscribe-form');
+        const formData = new FormData(form);
+        
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const subscribeButton = form.querySelector('button');
+                const subscribeIcon = subscribeButton.querySelector('i');
+                const subscribeText = subscribeButton.querySelector('.subscribe-text');
+                const subscriberCount = document.getElementById('subscriber-count');
+                
+                if (data.subscribed) {
+                    subscribeButton.classList.remove('btn-danger');
+                    subscribeButton.classList.add('btn-secondary');
+                    subscribeIcon.classList.remove('fa-user-plus');
+                    subscribeIcon.classList.add('fa-user-minus');
+                    subscribeText.textContent = 'Unsubscribe';
+                } else {
+                    subscribeButton.classList.remove('btn-secondary');
+                    subscribeButton.classList.add('btn-danger');
+                    subscribeIcon.classList.remove('fa-user-minus');
+                    subscribeIcon.classList.add('fa-user-plus');
+                    subscribeText.textContent = 'Subscribe';
+                }
+                
+                subscriberCount.textContent = `${data.subscriber_count} subscribers`;
+            } else {
+                alert(data.error || 'An error occurred while processing your request');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while processing your request');
+        });
+    };
+});
+</script>
+{% endblock %} 

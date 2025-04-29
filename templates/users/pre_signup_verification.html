@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block head_title %}{% trans "Verify Your Email" %}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3 class="mb-0">{% trans "Verify Your Email" %}</h3>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <img src="{% static 'images/email-verification.svg' %}" alt="Email Verification" class="img-fluid mb-3" style="max-width: 200px;">
+                        <h4 class="mb-3">{% trans "Enter Your Email" %}</h4>
+                        <p class="text-muted">{% trans "Please enter your email address to receive a verification code." %}</p>
+                    </div>
+
+                    <form method="post" action="{% url 'users:pre_signup_email_verification' %}">
+                        {% csrf_token %}
+                        <div class="form-floating mb-3">
+                            <input type="email" name="email" class="form-control" id="email" placeholder="name@example.com" required>
+                            <label for="email">{% trans "Email address" %}</label>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-lg" type="submit">
+                                {% trans "Send Verification Code" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-3">
+                    <div class="small">
+                        {% trans "Already have an account?" %}
+                        <a href="{% url 'account_login' %}" class="text-primary">{% trans "Log In" %}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border-bottom: none;
+}
+
+.form-control {
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+}
+
+.form-floating label {
+    padding: 12px;
+}
+
+.alert {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %} 

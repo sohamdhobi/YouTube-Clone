@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load video_tags %}
+
+{% block title %}Browse Videos - YouTube Clone{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h1 class="h4 mb-0">Browse Content</h1>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Select content to add to your playlists</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12">
+            <div class="row g-4">
+                {% for video in videos %}
+                    <div class="col-md-4">
+                        <div class="card h-100 content-card">
+                            <a href="{% url 'videos:watch' video.slug %}">
+                                <div class="video-thumbnail">
+                                    <img src="{{ video.thumbnail.url }}" alt="{{ video.title }}">
+                                    {% if video.duration %}
+                                    <div class="duration">{{ video.duration|time:"H:i:s" }}</div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="{% url 'videos:watch' video.slug %}" class="text-decoration-none text-dark">
+                                        {{ video.title|truncatechars:60 }}
+                                    </a>
+                                </h5>
+                                <p class="card-text text-muted">{{ video.views|format_view_count }} views &middot; {{ video.created_at|timesince }} ago</p>
+                                <div class="d-flex align-items-center mt-2">
+                                    <a href="{% url 'users:channel' video.creator.username %}" class="text-decoration-none">
+                                        <img src="{% if video.creator.avatar %}{{ video.creator.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                             alt="{{ video.creator.username }}" 
+                                             class="rounded-circle me-2"
+                                             width="24" height="24">
+                                        <small class="text-muted">{{ video.creator.username }}</small>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'videos:watch' video.slug %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <div>
+                                        {% if user.is_authenticated and user != video.creator %}
+                                        <div class="dropdown d-inline-block me-1">
+                                            <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" id="reportDropdown{{ video.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-flag"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown{{ video.id }}">
+                                                <li><h6 class="dropdown-header">Report Content</h6></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=inappropriate">
+                                                        <i class="fas fa-exclamation-triangle text-danger me-2"></i> Inappropriate
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=spam">
+                                                        <i class="fas fa-ban text-danger me-2"></i> Spam
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'core:report_content' video.content_type video.id %}?reason=other">
+                                                        <i class="fas fa-ellipsis-h text-danger me-2"></i> Other
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        {% endif %}
+                                        <a href="{% url 'videos:add_to_playlist' video.slug %}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-plus"></i> Add to Playlist
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            No content available to add to playlists.
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

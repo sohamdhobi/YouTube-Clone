@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+{% load account socialaccount %}
+
+{% block title %}{% trans "Sign In" %} - YouTube Clone{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">{% trans "Sign In" %}</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    {% blocktrans %}Don't have an account? Then please <a href="{{ signup_url }}">sign up</a>.{% endblocktrans %}
+                </p>
+
+                <form class="login" method="POST" action="{% url 'account_login' %}" id="login_form">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <p class="mb-0">{{ error }}</p>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {{ form|crispy }}
+
+                    {% if redirect_field_value %}
+                        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="remember" class="form-check-input" id="remember">
+                            <label class="form-check-label" for="remember">{% trans "Remember me" %}</label>
+                        </div>
+                        
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> {% trans "Sign In" %}
+                        </button>
+                    </div>
+                </form>
+
+                {% get_providers as socialaccount_providers %}
+                {% if socialaccount_providers %}
+                    <div class="mt-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <hr class="flex-grow-1">
+                            <span class="px-3 text-muted">{% trans "Or sign in with" %}</span>
+                            <hr class="flex-grow-1">
+                        </div>
+                        <div class="d-grid gap-2">
+                            {% for provider in socialaccount_providers %}
+                                {% if provider.id == "google" %}
+                                    <a href="{% provider_login_url provider.id process='login' %}" class="btn btn-outline-danger">
+                                        <i class="fab fa-google"></i> {% trans "Continue with Google" %}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('login_form');
+    const emailInput = document.getElementById('id_login');
+    const passwordInput = document.getElementById('id_password');
+
+    // Email validation
+    emailInput.addEventListener('input', function() {
+        const email = this.value;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            this.setCustomValidity('Please enter a valid email address');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    // Password validation
+    passwordInput.addEventListener('input', function() {
+        if (this.value.length < 1) {
+            this.setCustomValidity('Please enter your password');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        if (!form.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add to Playlist{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="h4 mb-0">Add "{{ video.title }}" to a playlist</h1>
+                </div>
+                <div class="card-body">
+                    <!-- Create new playlist option -->
+                    <div class="mb-4">
+                        <h5>Create new playlist</h5>
+                        <form method="post" action="{% url 'videos:playlist_create' %}" class="mb-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="redirect_to" value="{% url 'videos:add_to_playlist' video.slug %}">
+                            <div class="row g-2">
+                                <div class="col-md-8">
+                                    <input type="text" name="title" class="form-control" placeholder="New playlist title" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-flex">
+                                        <select name="is_public" class="form-select flex-grow-1">
+                                            <option value="True">Public</option>
+                                            <option value="False">Private</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary ms-2">Create</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <hr>
+
+                    <!-- Existing playlists -->
+                    <div>
+                        <h5>Add to existing playlist</h5>
+                        {% if playlists %}
+                            <div class="list-group">
+                                {% for playlist in playlists %}
+                                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0">{{ playlist.title }}</h6>
+                                            <small class="text-muted">
+                                                {{ playlist.playlist_items.count }} videos
+                                                {% if not playlist.is_public %}
+                                                    • <i class="fas fa-lock"></i> Private
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            {% if video in playlist.videos.all %}
+                                                <span class="badge bg-success">Added</span>
+                                            {% else %}
+                                                <form method="post" action="{% url 'videos:playlist_add_item' playlist.id video.slug %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="redirect_to" value="{% url 'videos:add_to_playlist' video.slug %}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-plus"></i> Add
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light">
+                                You don't have any playlists yet. Create one above!
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'videos:watch' video.slug %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to video
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Subscribed Channels{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Subscribed Channels -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Your Subscribed Channels</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for channel in subscribed_channels %}
+                    <a href="{% url 'users:channel' channel.username %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <img src="{% if channel.avatar %}{{ channel.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" 
+                                 alt="{{ channel.username }}" 
+                                 class="rounded-circle me-2"
+                                 width="40" height="40">
+                            <div>
+                                <h6 class="mb-0">{{ channel.username }}</h6>
+                                <small class="text-muted">{{ channel.subscriber_count }} subscribers</small>
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted">
+                        You haven't subscribed to any channels yet
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Content from Subscribed Channels -->
+        <div class="col-md-8">
+            <!-- Latest Videos -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latest Videos</h5>
+                </div>
+                <div class="card-body">
+                    {% if latest_videos %}
+                    <div class="row g-4">
+                        {% for video in latest_videos %}
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <a href="{% url 'videos:watch' video.slug %}" class="text-decoration-none text-dark">
+                                    <img src="{{ video.thumbnail.url }}" class="card-img-top" alt="{{ video.title }}">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ video.title }}</h6>
+                                        <p class="card-text text-muted small">
+                                            {{ video.creator.username }}<br>
+                                            {{ video.views }} views • {{ video.created_at|timesince }} ago
+                                        </p>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No new videos from your subscribed channels</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Latest Posts -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latest Posts</h5>
+                </div>
+                <div class="card-body">
+                    {% if latest_posts %}
+                    <div class="list-group list-group-flush">
+                        {% for post in latest_posts %}
+                        <a href="{% url 'core:post_detail' post.slug %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-1">{{ post.title }}</h6>
+                                <small class="text-muted">{{ post.created_at|timesince }} ago</small>
+                            </div>
+                            <p class="mb-1 text-muted small">{{ post.creator.username }}</p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No new posts from your subscribed channels</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Latest Blogs -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latest Blogs</h5>
+                </div>
+                <div class="card-body">
+                    {% if latest_blogs %}
+                    <div class="list-group list-group-flush">
+                        {% for blog in latest_blogs %}
+                        <a href="{% url 'core:blog_detail' blog.slug %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-1">{{ blog.title }}</h6>
+                                <small class="text-muted">{{ blog.created_at|timesince }} ago</small>
+                            </div>
+                            <p class="mb-1 text-muted small">{{ blog.creator.username }}</p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No new blogs from your subscribed channels</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

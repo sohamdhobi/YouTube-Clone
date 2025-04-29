@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load video_tags %}
+
+{% block title %}Home - YouTube Clone{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Feed Filter Tabs -->
+        <div class="mb-4">
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link {% if feed_type == 'for_you' %}active{% endif %}" href="{% url 'core:home' %}?feed=for_you">
+                        <i class="fas fa-magic text-primary me-2"></i> For You
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if feed_type == 'trending' %}active{% endif %}" href="{% url 'core:home' %}?feed=trending">
+                        <i class="fas fa-chart-line text-success me-2"></i> Trending
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if feed_type == 'latest' %}active{% endif %}" href="{% url 'core:home' %}?feed=latest">
+                        <i class="fas fa-clock text-primary me-2"></i> Latest
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Videos Feed -->
+        <div class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                {% if feed_type == 'for_you' and is_personalized %}
+                <span class="text-muted small">Content ranked based on your activity</span>
+                {% elif feed_type == 'for_you' %}
+                <span class="text-muted small">Sign in for personalized recommendations</span>
+                {% endif %}
+            </div>
+            <div class="row">
+                {% for video in videos %}
+                <div class="col-md-4 mb-4">
+                    <a href="{% url 'videos:watch' video.slug %}?rec_source={{ feed_type }}" class="text-decoration-none text-dark">
+                        <div class="card video-card h-100">
+                            <div class="video-thumbnail">
+                                <img src="{{ video.thumbnail.url }}" alt="{{ video.title }}" class="card-img-top">
+                                {% if video.duration %}
+                                <span class="video-duration">{{ video.duration|time:"G:i:s" }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title text-truncate">{{ video.title }}</h5>
+                                <p class="card-text text-muted mb-0">
+                                    <small>{{ video.creator.username }}</small>
+                                </p>
+                                <p class="card-text text-muted">
+                                    <small>{{ video.views|format_view_count }} views • {{ video.created_at|timesince }} ago</small>
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        No videos available. {% if feed_type == 'for_you' %}Keep watching content to get personalized recommendations!{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- User Interest Topics -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i> {% if request.user.is_authenticated %}Your Interests{% else %}Popular Topics{% endif %}</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for topic in user_interest_topics %}
+                <a href="{% url 'core:category_detail' topic.slug %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    {{ topic.name }}
+                    <span class="badge bg-primary rounded-pill">{% if topic.view_count %}{{ topic.view_count }}{% else %}{{ topic.videos_count }}{% endif %}</span>
+                </a>
+                {% empty %}
+                <div class="list-group-item">No topics yet. Watch more videos to see personalized interests.</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Recommended Channels -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i> Recommended Channels</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for channel_data in recommended_channels %}
+                <a href="{% if channel_data.user == request.user %}{% url 'users:profile' channel_data.user.username %}{% else %}{% url 'users:channel' channel_data.user.username %}{% endif %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        {% if channel_data.user.avatar %}
+                        <img src="{{ channel_data.user.avatar.url }}" alt="{{ channel_data.user.username }}" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                        {% else %}
+                        <img src="{% static 'images/default-avatar.png' %}" alt="{{ channel_data.user.username }}" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                        {% endif %}
+                        <span>{{ channel_data.user.username }}{% if channel_data.user == request.user %} (You){% endif %}</span>
+                    </div>
+                    <span class="badge bg-success rounded-pill">{{ channel_data.video_count }} videos</span>
+                </a>
+                {% empty %}
+                <div class="list-group-item">No channel recommendations available yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Trending Topics -->
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-fire me-2"></i> Trending Topics</h5>
+            </div>
+            <div class="card-body">
+                {% for topic in trending_topics %}
+                <a href="{% url 'core:search' %}?q={{ topic.name }}" class="btn btn-sm btn-outline-danger m-1">
+                    {{ topic.name }} ({{ topic.videos_count }})
+                </a>
+                {% empty %}
+                <p class="mb-0">No trending topics available.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

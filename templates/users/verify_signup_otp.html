@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block head_title %}{% trans "Enter Verification Code" %}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3 class="mb-0">{% trans "Enter Verification Code" %}</h3>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <img src="{% static 'images/email-verification.svg' %}" alt="Email Verification" class="img-fluid mb-3" style="max-width: 200px;">
+                        <h4 class="mb-3">{% trans "Check Your Email" %}</h4>
+                        <p class="text-muted">{% trans "We've sent a verification code to:" %}</p>
+                        <p class="fw-bold">{{ email }}</p>
+                    </div>
+
+                    <form method="post" action="{% url 'users:verify_signup_otp' %}">
+                        {% csrf_token %}
+                        <div class="form-floating mb-3">
+                            <input type="text" name="otp" class="form-control" id="otp" placeholder="Enter 6-digit code" required maxlength="6" pattern="\d{6}">
+                            <label for="otp">{% trans "Verification Code" %}</label>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-lg" type="submit">
+                                {% trans "Verify Code" %}
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="mb-2">{% trans "Didn't receive the code?" %}</p>
+                        <a href="{% url 'users:pre_signup_email_verification' %}" class="btn btn-outline-primary">
+                            {% trans "Send New Code" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border-bottom: none;
+}
+
+.form-control {
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+}
+
+.btn-outline-primary {
+    border-radius: 10px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,123,255,0.2);
+}
+
+.form-floating label {
+    padding: 12px;
+}
+</style>
+{% endblock %} 
